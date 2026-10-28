@@ -114,7 +114,7 @@ jobs:
         if: github.event_name == 'pull_request' && !cancelled()
         run: |
           TAG=$(git describe --tags --abbrev=0 --match 'v*' || true)
-          [ -z "$TAG" ] && { echo "no release tag yet, skipping"; exit 0; }
+          [ -z "$TAG" ] && { echo "::warning title=Breaking-change check skipped::no v* release tag found, nothing to compare against"; exit 0; }
           git worktree add /tmp/base "$TAG"
           (cd /tmp/base/ios && xcodebuild build -scheme AuthSDK -derivedDataPath /tmp/base-dd \
             -sdk "$(xcrun --sdk iphonesimulator --show-sdk-path)" \
