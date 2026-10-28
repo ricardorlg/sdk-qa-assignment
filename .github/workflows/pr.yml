@@ -1,7 +1,7 @@
-name: 1-pr-gate
+name: PR Gate
 
-# Stage 1: every pull request. Fast, blocking, no emulators/simulators.
-# Signature contract (L2a) + behaviour contract (L2b, core + consumer scenarios) on both platforms.
+# Stage 1 – every pull request. Fast and blocking, no emulators/simulators.
+# Runs only the platform whose paths changed; shared inputs (contracts/, fake server) run both.
 on:
   pull_request:
   workflow_dispatch:
@@ -11,8 +11,43 @@ concurrency:
   group: pr-gate-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
 jobs:
-  contracts-android:
+  changes:
+    name: Detect changed platforms
+    runs-on: ubuntu-latest
+    outputs:
+      android: ${{ github.event_name != 'pull_request' || steps.f.outputs.android == 'true' }}
+      ios: ${{ github.event_name != 'pull_request' || steps.f.outputs.ios == 'true' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
+        id: f
+        if: github.event_name == 'pull_request'
+        with:
+          filters: |
+            shared: &shared
+              - 'contracts/**'
+              - 'fake-auth-server/**'
+              - 'compat.yaml'
+            android:
+              - *shared
+              - 'android/**'
+              - '.github/workflows/pr.yml'
+            ios:
+              - *shared
+              - 'ios/**'
+              - 'tools/ios_api.sh'
+              - '.github/workflows/pr.yml'
+
+  android:
+    name: "Android · L2a API + L2b behaviour contracts"
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -21,14 +56,27 @@ jobs:
       - uses: actions/setup-java@v6
         with: { distribution: temurin, java-version: 21 }
       - uses: gradle/actions/setup-gradle@v6
-      - name: L2a signature contract (apiCheck)
+      - name: "L2a · public API signature (apiCheck)"
         run: gradle -p android apiCheck --console=plain
-      - name: L2b behaviour contract (core + consumer scenarios)
+      - name: "L2b · behaviour contract (core + consumer scenarios)"
+        if: ${{ !cancelled() }}
         run: |
           node fake-auth-server/server.js & sleep 1
           CONTRACT_DIR=$PWD/contracts gradle -p android test --console=plain
+      - name: Test report
+        if: ${{ !cancelled() }}
+        uses: mikepenz/action-junit-report@v6
+        with:
+          report_paths: android/build/test-results/test/*.xml
+          check_name: "Android contract results"
+          detailed_summary: true
+          include_passed: true
+          require_tests: false
 
-  contracts-ios:
+  ios:
+    name: "iOS · L2a API + L2b behaviour contracts"
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
@@ -37,15 +85,15 @@ jobs:
         with: { node-version: 24 }
       - name: Toolchain
         run: xcodebuild -version && swift --version
-      - name: L2a signature contract (swiftinterface diff vs committed baseline)
+      - name: "L2a · public API signature (swiftinterface vs baseline)"
         run: EMIT=$RUNNER_TEMP/AuthSDK.swiftinterface tools/ios_api.sh check
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: ios-api-generated
           path: ${{ runner.temp }}/AuthSDK.swiftinterface
-      - name: L2a breaking-change classification (swift-api-digester vs last release tag)
-        if: github.event_name == 'pull_request'
+      - name: "L2a · breaking-change classification (swift-api-digester vs last tag)"
+        if: github.event_name == 'pull_request' && !cancelled()
         run: |
           TAG=$(git describe --tags --abbrev=0 --match 'v*' || true)
           [ -z "$TAG" ] && { echo "no release tag yet, skipping"; exit 0; }
@@ -54,7 +102,17 @@ jobs:
             -sdk "$(xcrun --sdk iphonesimulator --show-sdk-path)" \
             -destination "generic/platform=iOS Simulator" BUILD_LIBRARY_FOR_DISTRIBUTION=YES -quiet)
           tools/ios_api.sh breaking /tmp/base-dd
-      - name: L2b behaviour contract
+      - name: "L2b · behaviour contract (core + consumer scenarios)"
+        if: ${{ !cancelled() }}
         run: |
           node fake-auth-server/server.js & sleep 1
-          CONTRACT_DIR=$PWD/contracts swift test --package-path ios
+          CONTRACT_DIR=$PWD/contracts swift test --package-path ios --xunit-output $RUNNER_TEMP/ios-results.xml
+      - name: Test report
+        if: ${{ !cancelled() }}
+        uses: mikepenz/action-junit-report@v6
+        with:
+          report_paths: ${{ runner.temp }}/ios-results*.xml
+          check_name: "iOS contract results"
+          detailed_summary: true
+          include_passed: true
+          require_tests: false

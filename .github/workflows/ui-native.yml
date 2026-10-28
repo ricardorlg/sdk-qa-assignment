@@ -1,4 +1,4 @@
-name: 2-native-ui
+name: Native UI (nightly)
 
 # Stage 2: slow native UI + lifecycle tests (Espresso / XCUITest) over the OS matrix in compat.yaml.
 # Not a PR gate: runs nightly, on demand, and is called by the release stage.
@@ -14,6 +14,7 @@ concurrency:
 
 jobs:
   plan:
+    name: Build matrix from compat.yaml
     runs-on: ubuntu-latest
     outputs:
       android: ${{ steps.gen.outputs.android }}
@@ -28,6 +29,7 @@ jobs:
           echo "ios=$(python3 -c "import json;print(json.dumps(json.load(open('matrix.json'))['native_ui_ios']))")" >> "$GITHUB_OUTPUT"
 
   android:
+    name: "Android · Espresso (API ${{ matrix.os }})"
     needs: plan
     strategy:
       fail-fast: false
@@ -60,6 +62,7 @@ jobs:
           if-no-files-found: ignore
 
   ios:
+    name: "iOS · XCUITest (${{ matrix.os }})"
     needs: plan
     strategy:
       fail-fast: false
