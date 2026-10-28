@@ -16,7 +16,7 @@
 4. **Consumer-driven.** Consuming apps contribute scenarios that live in the SDK repo and block SDK PRs when broken.
 5. **Attributable and fast CI.** A generated compatibility matrix, path-filtered device jobs, and flaky tests that are flagged, never silently green (§5).
 
-**Evidence, not only claims.** The example (authentication) is runnable. Running it *found real defects*: concurrent callers triggered duplicate token refreshes on **both** platforms, and Android leaked a `JSONException` on a malformed response that iOS handled correctly. Both are fixed and now locked by shared scenarios.
+**Evidence, not only claims.** The example (authentication) is runnable. Running it *found real defects*: concurrent callers triggered duplicate token refreshes on **both** platforms, and Android leaked a `JSONException` on a malformed response that iOS handled correctly. Both are fixed and now locked by shared scenarios. A GitHub repository with five demo PRs shows the PR gate catching API and behaviour regressions in 1.5 to 3 minutes (§4).
 
 ---
 
@@ -183,10 +183,22 @@ flowchart LR
 | Injected iOS-only bug (503 treated as session expiry) | caught by `server_error_keeps_session` |
 | Added public Kotlin symbol | `apiCheck` fails with the exact diff until `apiDump` is reviewed |
 | Renamed public Swift parameter label | `tools/ios_api.sh check` shows the exact diff; `swift-api-digester` classifies it as a rename (breaking) |
-| L3b native tests: 4 Espresso (API 36) + 4 XCUITest (iOS 18) | pass |
+| L3b native tests: 4 Espresso + 4 XCUITest | pass locally (API 36 / iOS 18) and on GitHub-hosted runners (Android API 29 and 36, iOS 18.5); iOS 26.2 failed once and was not investigated |
 | Keychain replaced by in-memory store | relaunch test fails (test is sensitive) |
 
-**Limitations:** `AuthClient` classes are minimal stand-ins; Android store uses `SharedPreferences` (not Keystore); the Android cold-start test simulates a new process; iOS API check uses a committed `.swiftinterface` baseline plus `swift-api-digester` (SwiftPM's `diagnose-api-breaking-changes` does not support iOS targets), proven locally but not on GitHub-hosted runners; OS/device matrices are generated (`compat.yaml`) but only run locally on one emulator and one simulator.
+**Quick-feedback evidence: five demo pull requests on GitHub** (private repo `ricardorlg/sdk-qa-assignment`). Each changes one thing; the PR gate reports which layer catches it, in about 1.5 to 3 minutes, and only runs the platform whose paths changed.
+
+| PR | Platform | What it breaks | L2a signature | L2b behaviour | Why |
+|---|---|---|---|---|---|
+| #1 | Android | public `login` renamed to `signIn` | **fails** (`apiCheck` diff) | fails (runner no longer compiles) | breaking API change |
+| #2 | iOS | single-flight refresh removed (internal) | passes | **fails** (`concurrent_refresh_is_single_flight`) | signature unchanged, behaviour regressed; Android still green, so the bug is iOS-only |
+| #3 | iOS | new public property `hasSession` | **fails** (diff) | passes | additive change: needs review, digester does not call it breaking |
+| #4 | Android | refresh lock removed (internal) | passes | **fails** | same bug class as #2, on Android |
+| #5 | iOS | `KeychainSessionStore.init(service:)` becomes `init(keychainService:)` | **fails** | passes | `swift-api-digester` vs tag `v1.0.0`: "init(service:) has been removed" (breaking) |
+
+What this shows: signature checks (L2a) and behaviour contracts (L2b) catch different things and both are needed (#2 and #4 are invisible to L2a; #3 and #5 are invisible to L2b). L2a diffs are posted to the job summary and as a sticky PR comment; test results appear as a JUnit check.
+
+**Limitations:** `AuthClient` classes are minimal stand-ins; Android store uses `SharedPreferences` (not Keystore); the Android cold-start test simulates a new process; iOS API check uses a committed `.swiftinterface` baseline plus `swift-api-digester` (SwiftPM's `diagnose-api-breaking-changes` does not support iOS targets); the baseline text depends on the Xcode version, so it is regenerated from the CI toolchain (`macos-26`) and a toolchain upgrade means a reviewed baseline update; the digester runs in ABI mode and its "new API without @available" notices are ignored because additive API is not breaking; Swift Testing reports the 10 scenarios as one parameterised test in JUnit, so the failing scenario is read from the log; real devices and other OEM emulators are not covered (described in §3, not built).
 
 ---
 
@@ -194,14 +206,22 @@ flowchart LR
 
 **Key message:** fast, blocking gates on every PR; breadth (matrix, canary, full device set) on nightly and release candidates; every failure carries an owner and a cause category.
 
-Implemented as three staged workflows in `.github/workflows/`: `pr.yml` (PR gate: L2a/L2b contracts on both platforms, no emulators; verified green on GitHub-hosted `ubuntu-latest` and `macos-26`), `ui-native.yml` (nightly/on-demand Espresso and XCUITest over the `compat.yaml` OS matrix; a first run passed on Android API 29/36 and iOS 18.5, iOS 26.2 is still being investigated) and `release.yml` (RC tags: gate + UI + backward-compat and canary jobs, which are specified stubs). The iOS `.swiftinterface` baseline is tied to the CI Xcode version, so it is generated from a CI artifact.
+Implemented as three staged workflows in `.github/workflows/`, one per stage of the cycle:
+
+| Workflow | Trigger | Content | Status |
+|---|---|---|---|
+| **PR Gate** (`pr.yml`) | every PR | path-aware: Android job only if `android/**` changed, iOS job only if `ios/**` changed, both if `contracts/**` or the fake server changed. Each runs L2a and L2b (L2b still runs when L2a fails), publishes a JUnit check, a job summary and a sticky comment with the API diff | verified on GitHub (`ubuntu-latest`, `macos-26`), see the demo PRs in §4 |
+| **Native UI** (`ui-native.yml`) | nightly, manual | Espresso and XCUITest over the OS matrix in `compat.yaml`; flaky report artifact | ran once: Android API 29/36 and iOS 18.5 passed (6 to 11 min), iOS 26.2 failed after 16 min and has not been diagnosed |
+| **Release Validation** (`release.yml`) | tag `rc-*`, manual | PR gate, then native UI matrix, then contract-vs-previous-releases and consumer canary | gate and UI reuse the other workflows; the last two jobs are specified stubs |
+
+UI tests are deliberately not a PR gate (6 to 16 minutes per job). Actions are on their latest major versions (checkout v7, setup-node v7 on Node 24, setup-java v6, upload-artifact v7, gradle v6); the macOS runner is `macos-26`, the newest label GitHub offers today.
 
 ```mermaid
 flowchart LR
-  PR[Pull request] --> A[Fast gate: lint, L1, L2a, L2b<br/>iOS + Android in parallel]
-  A --> B[L3 affected modules<br/>+ L3b if UI/storage/session paths changed]
-  B --> M[Merge]
-  M --> N[Nightly: all pairs, full native UI,<br/>OS matrix, flaky report]
+  PR[Pull request] --> P[Detect changed paths]
+  P --> A[PR Gate: L2a + L2b<br/>only the affected platform<br/>JUnit check + API diff comment]
+  A --> M[Merge]
+  M --> N[Nightly: native UI Espresso + XCUITest,<br/>OS matrix, flaky report]
   M --> RC[RC tag]
   RC --> X[Generated matrix from compat.yaml<br/>OS x contracts vs N-1/N-2]
   X --> K[Consumer canary: apps built against RC<br/>and previous SDK]
@@ -210,7 +230,7 @@ flowchart LR
   G -->|fail| F[Owner-routed report]
 ```
 
-**PR gates (blocking, target < 15 min):** lint, L1, **L2a** unreviewed API change fails · **L2b** failing consumer scenario blocks · both platform runners must pass on any scenario change (parity gate) · L3 for affected modules only · L3b only on UI/storage/session path changes (`dorny/paths-filter`).
+**PR gates (blocking, target < 15 min; measured 1.5 to 3 min for the implemented subset):** **L2a** unreviewed API change fails · **L2b** failing consumer scenario blocks · a change to `contracts/` runs both platform runners (parity gate) · path-based selection with `dorny/paths-filter`. Planned but not built: lint, L1 and L3 for affected modules. L3b native UI is not a PR gate; it runs nightly and on RC, and could be made a PR gate for UI/storage/session paths once its duration is acceptable.
 
 **Release gates (blocking):** all L1–L3 green and no quarantined test on changed modules · compatibility matrix green · every in-scope consumer app builds and passes smoke against the RC · zero open P1/P2 regressions · coverage and mutation score on changed code do not drop (ratchet).
 
@@ -232,7 +252,7 @@ flowchart LR
 - Auto-quarantine after a flake-rate threshold: non-blocking, with an owner and a 2-week expiry (fix or delete).
 - Slow tests move down the pyramid or to nightly; each stage has a time budget.
 
-**Communicating failures:** every report states module + version, platform, cause category (product / dependency / test / environment), first-bad-commit when bisectable, and artifacts (logs, network trace, device info, seed). Routed by CODEOWNERS; PR comment for PRs, Slack for nightly/RC; one dashboard for flake rate, duration and gate pass rate.
+**Communicating failures:** every report states module + version, platform, cause category (product / dependency / test / environment), first-bad-commit when bisectable, and artifacts (logs, network trace, device info, seed). Routed by CODEOWNERS; a sticky PR comment (API diff) and a JUnit check for PRs, Slack for nightly/RC (not set up); one dashboard for flake rate, duration and gate pass rate.
 
 ---
 
@@ -383,6 +403,6 @@ Each experiment has a predicted outcome for each cause, so the result discrimina
 
 **Assumptions to validate:** module ownership, number of consuming apps and pinning policy, release cadence, whether the SDK ships UI (L3b applies only then).
 
-**AI usage.** GitHub Copilot was used as a pair to draft structure, scaffold the example (fake server, Swift/Kotlin runners, host apps, CI workflow) and iterate on wording. Approach, scope, risk scores and priorities were decided by me in dialogue. Output was validated rather than trusted: all tests were executed, and sensitivity was proven with deliberate faults (iOS-only 503 bug, API change, Keychain→memory store), each caught by the intended test. New scenarios were written first and run against unfixed code, which surfaced two genuine defects. Anything not exercised (GitHub-hosted runs, canary and previous-release jobs, time targets) is labelled as such.
+**AI usage.** GitHub Copilot was used as a pair to draft structure, scaffold the example (fake server, Swift/Kotlin runners, host apps, CI workflow) and iterate on wording. Approach, scope, risk scores and priorities were decided by me in dialogue. Output was validated rather than trusted: all tests were executed, and sensitivity was proven with deliberate faults (iOS-only 503 bug, API change, Keychain→memory store), each caught by the intended test. New scenarios were written first and run against unfixed code, which surfaced two genuine defects. The CI was run on GitHub-hosted runners and iterated until the PR gate was green; five demo PRs show which layer catches which change (§4). Anything not exercised (iOS 26.2 UI run, canary and previous-release jobs, real devices, most time targets) is labelled as such.
 
 **References:** Semantic Versioning 2.0 (semver.org) · Kotlin `binary-compatibility-validator` · Android *Testing strategies* (test pyramid, fidelity, cost of a bug) · Fowler, *The Practical Test Pyramid* · Satisfice HTSM (risk lens) · ISTQB risk-based testing practice.

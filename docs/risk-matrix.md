@@ -6,7 +6,7 @@ Scoring: **Risk = Impact (1-5) × Probability (1-5)**. Zones: CRITICAL 15-25, HI
 
 ## 1. Register
 
-| ID | Risk (what can fail) | Impact | Prob. | Score | Zone | Primary controls (see strategy §3) |
+| ID | Risk (what can fail) | Impact | Prob. | Score | Zone | Primary controls (see FINAL_DELIVERABLE §3) |
 |---|---|---|---|---|---|---|
 | R1 | A change in public API or behaviour breaks consuming apps | 5 | 4 | **20** | CRITICAL | L2a signature contract, L2b consumer-driven contracts, SemVer gate |
 | R2 | iOS and Android behave differently for the same capability | 4 | 4 | **16** | CRITICAL | One scenario file, two native runners, parity gate |

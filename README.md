@@ -28,7 +28,7 @@ Adding a scenario = editing `scenarios.json` only; both platforms pick it up, so
 
 ## Strategy, CI and tooling
 
-- `docs/strategy.md` (main document), `docs/risk-matrix.md` (risk register R1–R15), `docs/slides.md` (Marp deck). Build PDFs: `/opt/anaconda3/bin/python3 tools/build_docs.py` (output in `docs/dist/`, git-ignored).
+- `docs/FINAL_DELIVERABLE.md` (main document), `docs/risk-matrix.md` (risk register R1–R15), `docs/slides.md` (Marp deck). Build PDFs: `/opt/anaconda3/bin/python3 tools/build_docs.py` (output in `docs/dist/`, git-ignored).
 - `.github/workflows/` – `pr.yml` (fast PR gate, green on GitHub), `ui-native.yml` (nightly Espresso/XCUITest matrix), `release.yml` (RC tags; canary and previous-release jobs are stubs).
 - `compat.yaml` + `tools/gen_matrix.py pr|rc` – OS/device/module/release matrices.
 - `tools/retry_flag_flaky.sh` – retry once and flag pass-on-retry as FLAKY.

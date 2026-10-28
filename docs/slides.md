@@ -133,4 +133,4 @@ flowchart LR
 
 **AI usage:** GitHub Copilot as a pair for structure and scaffolding; approach, scope and priorities decided in dialogue. Validated by running every test and injecting faults, and by writing new scenarios first against unfixed code (found two real bugs).
 
-<span class="small">Repository: `sdk-qa-assignment/` · full document `docs/strategy.md` · risk register `docs/risk-matrix.md`</span>
+<span class="small">Repository: `sdk-qa-assignment/` · full document `docs/FINAL_DELIVERABLE.md` · risk register `docs/risk-matrix.md`</span>
