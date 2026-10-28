@@ -1,262 +1,360 @@
 # Mobile SDK Quality Engineering – Proposal
 
-**Role:** Senior Mobile QA Engineer (Platform / SDK) · **Status:** DRAFT v0.2
-**Companion files:** [`risk-matrix.md`](risk-matrix.md) (full risk register) · [`slides.md`](slides.md) (short presentation) · code in this repository
+**Role:** Senior Mobile QA Engineer (Platform / SDK) · **Status:** DRAFT v0.3
+**Companion files:** [`risk-matrix.md`](risk-matrix.md) (full risk analysis) · [`slides.md`](slides.md) (short deck) · [code repository](https://github.com/ricardorlg/sdk-qa-assignment)
 
 ---
 
-## 0. Executive summary
+## Introduction
 
-**Problem.** Shared SDK modules are consumed by several apps on two native platforms. Quality is mostly checked late and through UI/E2E, so failures are slow to find, hard to attribute, and platform drift goes unnoticed.
+**The situation.** I am the QA of a team building an SDK made of several modules. Some modules belong to other teams. The SDK is already used by existing apps and will be used by a new app. Five problems are named in the brief: module updates affect other modules or apps, iOS and Android behave differently, E2E tests are slow and flaky, version compatibility is unclear, and integration problems are found late and are hard to attribute.
 
-**Approach in five points**
-1. **Risk first.** Test effort follows *impact × probability* (§2), not equal coverage everywhere.
-2. **Push confidence down.** Contracts and module tests give a verdict in minutes; E2E is a thin safety net.
-3. **One behavioural spec, two native implementations.** The same scenario files run on iOS and Android, so drift becomes a failing test (§3, §4).
-4. **Consumer-driven.** Consuming apps contribute scenarios that live in the SDK repo and block SDK PRs when broken.
-5. **Attributable and fast CI.** A generated compatibility matrix, path-filtered device jobs, and flaky tests that are flagged, never silently green (§5).
+**What I built to support the proposal.** A small, deliberately simple *dummy SDK*: an **authentication module** (login, token refresh, logout, session restore) written natively in **Swift** and **Kotlin**, plus a scripted fake auth server, a minimal host app per platform, and the CI that tests them ([repository](https://github.com/ricardorlg/sdk-qa-assignment)). It is not a real SDK. It exists so that the strategy is *demonstrated* and not only described: every layer marked **Built** below can be run and its behaviour seen in a pull request. Authentication was chosen because it is high risk, every module depends on it, and its error semantics tend to drift between platforms.
 
-**Evidence, not only claims.** The example (authentication) is runnable. Running it *found real defects*: concurrent callers triggered duplicate token refreshes on **both** platforms, and Android leaked a `JSONException` on a malformed response that iOS handled correctly. Both are fixed and now locked by shared scenarios. A GitHub repository with five demo PRs shows the PR gate catching API and behaviour regressions in 1.5 to 3 minutes (§4).
+**How the document maps to the assignment**
 
----
+| Assignment point | Section | Code in the repo? |
+|---|---|---|
+| 1. Test strategy | [§1](#1-test-strategy) | Partly: contracts, native UI and compatibility are built; the rest is described |
+| 2. Automation example | [§2](#2-automation-example) | Yes, with links to each demo |
+| 3. CI/CD and release validation | [§3](#3-cicd-and-release-validation) | Yes for the PR gate and nightly UI; release jobs are stubs |
+| 4. Investigation scenario | [§4](#4-investigation-scenario) | No (a method, not code) |
+| 5. First three priorities | [§5](#5-initial-priorities) | No |
+| Beyond the brief | [§6](#6-future-improvements) future improvements · [§7](#7-risks-trade-offs-and-ai-usage) risks, trade-offs, AI usage | — |
 
-## 1. Context, assumptions and principles
+**Status legend used throughout:** **Built** = code exists and ran in CI · **Described** = strategy only; how I would do it, left as future work.
 
-**Who is involved.** I am the QA of the SDK platform team. The SDK is a set of modules: some owned by my team, some by other teams. It is consumed by **existing apps** (already in production, upgrading at their own pace) and by a **new app** (first release soon, no automation yet). Quality is therefore a shared responsibility: QA owns the strategy, platform and signal; module teams own their tests; app teams own their journeys and their consumer contracts.
-
-**Assumptions** (to be validated in the first two weeks; none is known from the brief):
+**Key assumptions** (none is known from the brief; I would validate them in the first two weeks)
 
 | # | Assumption | If wrong |
 |---|---|---|
-| A1 | SDK ships as versioned modules (SPM/CocoaPods, Maven/Gradle), SemVer, each module versioned independently | Add a release-train step to the compatibility policy (§5) |
-| A2 | ~3 consuming apps (2 existing, 1 new); apps pin exact SDK versions and upgrade every 1–3 releases | Fewer apps: canary becomes the main gate; more apps: contract layer matters even more |
-| A3 | Native implementation per platform, no shared behavioural spec today | If shared code (KMP) exists, parity risk drops and L2b focuses on the bridge |
-| A4 | Existing automation is mostly UI/E2E, run nightly, with no flake data | Priority 1 gives the real numbers and re-scores the risks |
-| A5 | Release cadence ~every 2–4 weeks; apps ship on their own train | Gates and time budgets stay, only cadence of RC changes |
-| A6 | SDK ships some UI (login, consent screens) and handles session/lifecycle | If headless, L3b shrinks to lifecycle only |
-| A7 | A device farm (BrowserStack/Firebase/AWS) is available on budget; no in-house device lab | Real-device coverage is cut to a smaller, pre-agreed set |
+| A1 | The SDK ships as versioned modules (SPM/CocoaPods, Maven/Gradle), SemVer, each module versioned independently | Add a release-train step to the compatibility policy |
+| A2 | About 3 consuming apps (2 existing, 1 new); apps pin exact SDK versions and upgrade every 1 to 3 releases | Fewer apps: the canary becomes the main gate. More apps: contracts matter even more |
+| A3 | Native implementation per platform; no shared behavioural spec today | If shared code (KMP) exists, parity risk drops and L2b focuses on the bridge |
+| A4 | Existing automation is mostly UI/E2E, run nightly, with no flake data | Priority 1 produces the real numbers and re-scores the risks |
+| A5 | The SDK ships some UI (login, consent) and handles session and lifecycle | If headless, L3b shrinks to lifecycle only |
+| A6 | A device farm (BrowserStack, Firebase, AWS) is available on budget; there is no in-house device lab | Real-device coverage is cut to a smaller, pre-agreed set |
+| A7 | There is a staging backend, and test accounts can be created | L4 uses the fake server only |
 
-**Principles:** (1) risk drives coverage · (2) one spec, two implementations · (3) every failure is attributable to module, version and cause category · (4) E2E is a safety net, not the main signal · (5) quality is a conversation as much as a pipeline: ownership, contracts and communication are part of the strategy (§8).
+**Time assumptions.** The numbers below are *working budgets*, not measurements of the client's system. The measured column is from the demo repo on GitHub-hosted runners.
 
----
+| Item | Assumption / budget | Measured in the demo |
+|---|---|---|
+| Release cadence | Release candidate (RC) every 2 to 4 weeks; apps ship on their own train | — |
+| PR gate | under 15 min, blocking | 1.5 to 3 min (L2a + L2b only) |
+| Nightly native UI | under 60 min for the whole OS matrix | Android 6 to 7 min, iOS 11 min per job |
+| RC validation | under 2 h, including canary and real devices | not built |
+| Investigation | contain in the first hour; reproducible failure within a day | — |
+| Onboarding and first outcomes | 30 days listening; outcomes at about 2, 4 and 6 weeks (§5) | — |
 
-## 2. Risk assessment (drives everything else)
+**Timebox and what I left out.** The exercise was timeboxed, so I put the effort where the risk analysis says it pays most: *contracts, compatibility and fast CI*. I intentionally did not build: a broad UI/E2E suite, device-farm integration, the consumer canary, performance and security suites, or Pact with a broker. They are described and listed as future work.
 
-**Key message:** the highest risks are *change* risks (breaking consumers, platform drift, version mismatch, concurrency), not feature bugs, so the strategy invests in contracts and compatibility rather than more UI tests.
-
-Scores are expert judgement (no incident history exists) and are re-scored from real data in Priority 1. Full register, failure-mode analysis and coverage-per-zone: [`risk-matrix.md`](risk-matrix.md).
+**Risk analysis.** Test effort follows *impact × probability*, not equal coverage. The full register (15 risks, failure-mode analysis, coverage per risk zone) is in [`risk-matrix.md`](risk-matrix.md). Scores are expert judgement because no incident history exists; Priority 1 re-scores them from real data. The main conclusion: the biggest risks are *change* risks (breaking consumers, platform drift, version mismatch, concurrency), not feature bugs. The strategy therefore invests in contracts and compatibility rather than in more UI tests.
 
 | ID | Risk | I×P | Zone | Primary control |
 |---|---|---|---|---|
-| R1 | API/behaviour change breaks consuming apps | 5×4=**20** | CRITICAL | L2a signature + L2b consumer contracts |
-| R2 | iOS/Android behave differently | 4×4=**16** | CRITICAL | Shared scenarios, parity gate |
-| R4 | Incompatible module/dependency versions | 4×4=**16** | CRITICAL | `compat.yaml` matrix, contracts vs N-1/N-2, canary |
-| R5 | Concurrency/init-order at module boundaries | 4×4=**16** | CRITICAL | Parallel scenarios, TSan, pair integration |
+| R1 | API or behaviour change breaks consuming apps | 5×4=**20** | CRITICAL | L2a signature + L2b consumer contracts |
+| R2 | iOS and Android behave differently | 4×4=**16** | CRITICAL | Shared scenarios, parity gate |
+| R4 | Incompatible module or dependency versions | 4×4=**16** | CRITICAL | `compat.yaml` matrix, contracts vs N-1/N-2, canary |
+| R5 | Concurrency and init order at module boundaries | 4×4=**16** | CRITICAL | Parallel scenarios, TSan, module-pair integration |
 | R3 | Token lifecycle defects | 5×3=**15** | CRITICAL | Auth scenarios + L3b lifecycle |
-| R8 | Flaky/slow tests erode trust | 3×5=**15** | CRITICAL | Retry-and-flag, quarantine, PR budgets |
-| R7, R9, R10, R6 | OS upgrades · UI/lifecycle · backend errors · insecure storage | 10–12 | HIGH | OS matrix, L3b, fake-server scenarios, secure store |
-| R14 | Upgrade breaks stored session / data migration | 4×3=**12** | HIGH | Previous-release fixtures, upgrade-in-place test (§3) |
-| R15 | OEM/device-specific behaviour (battery limits, keystore, low memory) | 3×4=**12** | HIGH | T2 real-device tier on RC (§3) |
-| R11–R13 | Performance · log PII · accessibility | 6–9 | MEDIUM | RC budget, redaction test, exploratory |
-
-**How the zone sets test density:** CRITICAL = contract + integration + native UI + canary + exploratory every release; HIGH = contract/happy-path + key errors, smoke canary; MEDIUM = happy path, exploratory on change.
+| R8 | Flaky or slow tests erode trust | 3×5=**15** | CRITICAL | Retry-and-flag, quarantine, time budgets |
+| R14, R15 | Upgrade breaks stored session · OEM and device-specific behaviour | 12 | HIGH | Previous-release fixtures · real-device tier |
 
 ---
 
-## 3. Test strategy
+## 1. Test strategy
 
-**Key message:** native, fast levels at the base; contracts as the backbone; slow cross-app tests only where they cover a risk nothing below can.
+**Key message:** native, fast layers at the base; contracts as the backbone; slow cross-app tests only where they cover a risk nothing below can. Each layer answers one question, and a failure points at one place.
+
+### 1.1 The layers at a glance
 
 ```mermaid
-flowchart TB
-  subgraph SDK["SDK repo (fast, native, every PR)"]
-    L1[L1 Module unit] --> L2a[L2a Signature contract]
-    L2a --> L2b[L2b Behaviour contract<br/>core + consumer scenarios]
-    L2b --> L3[L3 Module integration]
-    L3 --> L3b[L3b Native UI + lifecycle<br/>host app on emulator/simulator]
-  end
-  subgraph APP["Consuming apps"]
-    L4[L4 New app: component tests<br/>SDK real, backend faked]
-  end
-  subgraph REL["Release candidate"]
-    L5[L5 Consumer canary + Appium smoke]
-    L6[L6 Exploratory]
-  end
-  FS[(Fake server + shared scenarios)] -.-> L2b
-  FS -.-> L3b
-  FS -.-> L4
-  L3b --> L4 --> L5 --> L6
+flowchart LR
+  L0[L0<br/>Static] --> L1[L1<br/>Unit] --> L2a[L2a<br/>API signature] --> L2b[L2b<br/>Behaviour<br/>contracts] --> L3[L3<br/>Module<br/>pairs] --> L3b[L3b<br/>Native UI +<br/>lifecycle] --> L4[L4<br/>Harness<br/>E2E] --> L5[L5<br/>Consuming<br/>apps] --> L6[L6<br/>Real<br/>devices] --> L7[L7<br/>Manual +<br/>exploratory]
+  classDef pr fill:#e3f2fd,stroke:#1565c0
+  classDef nightly fill:#e8f5e9,stroke:#2e7d32
+  classDef rc fill:#fff3e0,stroke:#ef6c00
+  class L0,L1,L2a,L2b,L3 pr
+  class L3b,L4 nightly
+  class L5,L6,L7 rc
 ```
 
-| Level | Scope | Tooling | Runs | Target* | Risks |
-|---|---|---|---|---|---|
-| L1 Module unit | One module, mocked boundaries | XCTest / JUnit + MockK | Every PR | < 3 min | R3, R12 |
-| **L2a Signature contract** | Public API surface: no unintended source/binary break | Android `binary-compatibility-validator`; iOS `.swiftinterface` diff + `swift-api-digester` | Every PR | < 2 min | R1 |
-| **L2b Behaviour contract** | Shared scenarios + scenarios contributed by each consuming app | Declarative JSON + fake server, native runners | Every PR | < 5 min | R1, R2, R3, R5, R10 |
-| L3 Module integration | Two+ modules, real DI, fake backend | XCTest / JUnit (JVM) | Affected pairs on PR, all pairs nightly | < 10 min | R4, R5 |
-| **L3b SDK-native UI + lifecycle** | SDK screens and native lifecycle in a host app inside the SDK repo | Espresso / XCUITest | PR when UI/storage/session paths change; nightly full | < 10 min | R6, R7, R9 |
-| L4 New app | Component/screen tests, SDK real, backend faked | XCUITest / Espresso, snapshots | PR | < 15 min | R9 |
-| L5 Consumer canary | Real apps built against the RC, few journeys | Appium | RC / nightly | < 30 min | R1, R4 |
-| L6 Exploratory | Charters: new capability, OS betas, poor networks, interruptions | Manual, session-based | Per release | timeboxed | R7, R13 |
+Blue = every PR · green = nightly · orange = release candidate. The fake server and shared scenarios feed L2b and L3b.
 
-\*Target times are working assumptions, calibrated against the baseline (Priority 1).
+| Layer | Question it answers | Runs | Owner | Status |
+|---|---|---|---|---|
+| L0 Static checks | Is the code well formed and the dependencies sane? | Every PR | Module teams | Described |
+| L1 Module unit | Does one module's logic work with its boundaries mocked? | Every PR | Module teams | Described |
+| **L2a API signature contract** | Did the public API change in a way consumers will notice? | Every PR | Platform team | **Built** |
+| **L2b Behaviour contracts** | Does the SDK still behave the way consumers rely on, on both platforms? | Every PR | Platform + app teams | **Built** |
+| L3 Module integration pairs | Do module A and module B work together (real DI, fake backend)? | Affected pairs on PR, all nightly | Module teams | Described |
+| **L3b Native UI and device lifecycle** | Do SDK screens, rotation, background, kill and relaunch work on a real OS? | Nightly (PR if UI or storage paths change) | Platform team | **Built** |
+| L4 E2E on the harness app | Do full journeys work against a real staging backend? | Nightly | QA | Described |
+| L5 Consuming apps | Does the RC work inside the real apps, and does upgrading keep sessions? | RC (smoke also nightly) | App teams + QA | Described |
+| L6 Real-device tier | Does it work on OEM hardware and under memory or battery pressure? | RC | QA | Described |
+| L7 Manual and exploratory | What did we not think to automate? | RC and on new capability | QA + devs | Described |
 
-**Contracts for an SDK**
-- **Signature contract (L2a):** public API dumped to a versioned file (`.api`) or diffed against the last release. CI fails on an undeclared change; breaking changes require a major bump (SemVer).
-- **Consumer-driven behaviour contract (L2b):** Pact's idea applied in-process. Each app contributes scenarios describing *how* it relies on the SDK (e.g. "a valid token is reused without a server call"). They live in `contracts/consumers/<app>/`, run in SDK CI, and `CODEOWNERS` makes each consuming team owner of its folder.
-- **Policy:** a failing consumer scenario blocks the SDK PR; unblocked by the owning team's approval or a major bump with migration notice.
-- **Trade-off:** more friction on SDK PRs, but feedback in minutes and a smaller, faster canary. Pact with a broker is a later option; it is HTTP-centric and adds infrastructure.
+Time budgets are working assumptions (see Introduction). Native tooling is used on L1 to L4 for fidelity and speed; Appium appears only in L5 for a few critical journeys.
 
-**SDK-native layer (L3b).** An SDK that ships screens or reacts to lifecycle cannot be trusted on logic tests alone. L3b runs the SDK in a minimal host app on an emulator/simulator: SDK-rendered UI, recreation/rotation, background→foreground, termination and relaunch (session restored from storage), secure storage on a real OS. It is *not* E2E: backend is the fake server, only the SDK's surface is driven, a handful of deterministic tests per capability (idling resources, never sleeps). Visual regressions and OEM quirks belong to exploratory or device-farm work.
+### 1.2 Layer by layer
 
-**Native vs cross-platform.** L1–L4 are native (fidelity, speed, no abstraction leaks). Appium appears only at L5 for a few critical journeys (login, core flow, upgrade path).
+**L0 Static checks (Described).** Lint (SwiftLint, ktlint/detekt), dependency-graph checks (lockfile diff, unexpected transitive changes), secret scanning. Cheapest signal; runs first on every PR.
 
-**Regression in the consuming apps (L4/L5).** The SDK team does not own the apps' suites, but depends on them to see integration breakage. Existing apps and the new app need different treatment:
+**L1 Module unit tests (Described).** Each module team tests its own logic with mocks at the module boundary (XCTest/Swift Testing; JUnit + MockK). QA provides templates and review but does not write them. PR rule: new business logic ships with unit tests. Target: coverage by risk zone, not a blanket number.
+
+**L2a API signature contract (Built).** Catches *interface* breaks before consumers see them.
+- Android: `binary-compatibility-validator` dumps the public API to a versioned `.api` file; `apiCheck` fails if the API changed without a reviewed `apiDump`.
+- iOS: a committed `.swiftinterface` baseline is diffed, and `swift-api-digester` compares against the last release tag (`v1.0.0` in the demo) to classify breaks.
+- Rule: an undeclared API change fails the PR; a removal or rename cannot ship as minor or patch (SemVer).
+
+**L2b Behaviour contracts (Built).** Catches *behaviour* breaks that keep the same signature.
+- **Core scenarios:** one declarative JSON file, run by a Swift runner and a Kotlin runner against the same fake server. Drift between platforms becomes a failing test.
+- **Consumer-driven scenarios:** each consuming app contributes scenarios describing *how* it relies on the SDK (for example "a valid token is reused without a server call"). They live in `contracts/consumers/<app>/` inside the SDK repo and run in SDK CI. `CODEOWNERS` makes the consuming team the owner of its folder.
+- **Policy:** a failing consumer scenario blocks the SDK PR; it is unblocked by the owning team's approval or a major bump with a migration note.
+- **Trade-off:** more friction on SDK PRs, in exchange for feedback in minutes and a smaller canary. Pact with a broker is the heavier option and is postponed (it is HTTP-centric and needs infrastructure).
+
+**L3 Module integration pairs (Described).** Two or more real modules with real DI and a fake backend, on the JVM or macOS. Which pairs run on a PR comes from `compat.yaml` (the modules that depend on the changed one); all pairs run nightly, with Thread Sanitizer. This is where "A and B together" failures live (R4, R5), and it is the suite the investigation in §4 would extend.
+
+**L3b Native UI and device lifecycle (Built).** An SDK that ships screens or reacts to lifecycle cannot be trusted on logic tests alone. A minimal host app *inside the SDK repo* runs on an emulator or simulator and covers: SDK-rendered login UI, rotation and activity recreation, background and foreground, process kill and relaunch (session restored from secure storage), and storage on a real OS. It is not E2E: the backend is the fake server, only the SDK surface is driven, and there are a handful of deterministic tests per capability (idling resources, no sleeps). Visual regression and OEM quirks belong to L6 and L7.
+
+**L4 E2E on the SDK test harness app (Described).** The same host app, now pointed at a *staging* backend with test accounts. A small number of full journeys (login, use a protected resource, token expiry in a real session, logout, re-login). Purpose: catch what the fake server cannot, such as a real backend change or a certificate or clock issue. It runs nightly and not on PRs because it is slower and depends on a shared environment. Any failure is first classified (product, dependency, test, environment; §4) before it reaches a developer.
+
+**L5 Consuming apps: regression, canary and upgrade (Described).** The SDK team does not own the apps' suites but depends on them to see integration breakage.
 
 | | Existing apps (in production) | New app (pre-release) |
 |---|---|---|
 | Starting point | Have regression suites, unknown health | No automation, highest uncertainty |
-| What the SDK team asks | A small *SDK-facing smoke* tagged `@sdk-smoke` (login, session restore, one flow per module), runnable against any SDK build | Same smoke from day one, written together with the app team; plus component tests with SDK real and backend faked (L4) |
-| When it runs | On the RC and nightly, in the app's own pipeline, with the SDK version as an input | On every app PR touching SDK usage, and on the RC |
-| Failure ownership | App team triages first, uses my report to decide SDK vs app; differential run (RC vs previous SDK) | QA of the SDK team pairs with the app team until the suite is stable |
-| Why | Avoid regressions in revenue-bearing flows | Highest risk: first real integration of every module in one app |
+| What the SDK team asks | A small SDK-facing smoke tagged `@sdk-smoke` (login, session restore, one flow per module), runnable against any SDK build | The same smoke from day one, written with the app team; plus component tests with the SDK real and the backend faked |
+| When it runs | RC and nightly, in the app's own pipeline, with the SDK version as an input | Every app PR that touches SDK usage, and the RC |
+| Failure ownership | App team triages first, using my report; a *differential run* (RC vs previous SDK) tells SDK regressions from app changes | I pair with the app team until the suite is stable |
 
-The new app is the *best* early signal for the SDK: it exercises the newest modules and the combination nobody has run before. I would embed in that team for the first release.
+The new app is the best early signal: it exercises the newest modules and combinations nobody has run before, so I would embed with that team for its first release. Two further checks live here:
+- **Consumer canary:** build each app with the RC and with the previous SDK; failing only on the RC isolates SDK regressions.
+- **Upgrade-in-place test (R14):** install the app with SDK N-1, log in, install over it with SDK N, assert the session is still valid (`adb install -r` on Android; install over on the iOS simulator). The contract suite also keeps a *persisted-state fixture* written by the previous release, which the new version must restore or migrate explicitly.
 
-**Device and OS coverage.** OS versions come from `compat.yaml` (min/max on PR, full list on RC). Devices are chosen by risk, not by count:
+**L6 Real-device tier (Described).** Simulators miss OEM behaviour, so this tier runs on a device farm for release candidates only. Devices are chosen by risk, not by count, and the list is data-driven (top devices and OS versions from the apps' analytics, reviewed quarterly; without analytics, Android market-share leaders in the target regions plus the two latest iOS majors).
 
 | Tier | Where | What | Why |
 |---|---|---|---|
-| T0 | Simulator/emulator, every PR | Min and max supported OS, one phone form factor | Fast and cheap; catches logic and lifecycle |
-| T1 | Simulator/emulator, nightly | Full OS list, tablet/foldable sizes, dark mode, large font, RTL | Layout and OS-behaviour drift (R7) |
-| T2 | Real devices (farm), RC only | Android: Samsung (One UI), Xiaomi/Redmi (MIUI/HyperOS), Pixel, one low-RAM device (≤3 GB); iOS: oldest supported device, current and previous OS, one small screen | OEM battery/background limits kill processes and clear state; keystore/Keychain and biometrics differ on real hardware; memory pressure |
-| T3 | Exploratory by hand, RC | Real network switching, interruptions, OS beta | What automation cannot simulate faithfully |
+| T0 | Simulator/emulator, every PR | Min and max supported OS, one phone size | Fast, cheap; catches logic and lifecycle |
+| T1 | Simulator/emulator, nightly | Full OS list, tablet sizes, dark mode, large font, RTL | Layout and OS-behaviour drift (R7) |
+| T2 | Real devices, RC | Android: Samsung (One UI), Xiaomi (MIUI/HyperOS), Pixel, one low-RAM device. iOS: oldest supported device, current and previous OS, one small screen | OEM battery and background limits kill processes and clear state; keystore and Keychain differ on hardware; memory pressure |
+| T3 | By hand, RC | Network switching, interruptions, OS beta | What automation cannot simulate faithfully |
 
-The device list is data-driven: top devices and OS versions by active users from app analytics, reviewed each quarter. Without analytics, I start with Android market-share leaders in the target regions and the two latest iOS majors.
+**L7 Manual regression and exploratory testing (Described).** Automation checks what we already know; exploratory testing finds what we do not. Both are scheduled, not ad hoc.
 
-**Automated vs exploratory vs manual.** Automation checks what we already know; exploratory finds what we do not. Both are scheduled, not ad hoc.
-
-| Type | When | Who | Charters (examples) | Output |
+| Type | When | Who | Examples | Output |
 |---|---|---|---|---|
-| Exploratory, session-based (60–90 min, charter, notes) | Per RC, and when a new module or major capability lands | QA + a developer from the module team (pairing) + one app-team member | New module in the new app · session expiry mid-flow · airplane mode and network switch during refresh · app killed during login · OS beta · backgrounding with OEM battery saver on · accessibility (VoiceOver/TalkBack, font scale) · log inspection for PII | Bugs, new scenario candidates for the contracts, charter list for next time |
-| Manual regression checklist (short, risk-ranked) | Per RC on real devices (T2) | QA | ~20 checks: login, restore, logout, token expiry, upgrade-in-place, deep link, permissions, low memory, rotation | Pass/fail per device; anything repeated twice becomes automated |
-| Bug bash | Before the new app's first release | Everyone touching the SDK and the app | Free exploration with prizes and a shared sheet | Fresh-eyes defects; usability issues |
+| Session-based exploratory (60 to 90 min, charter, notes) | Per RC, and when a new module lands | QA, paired with a module developer and an app-team member | New module inside the new app · session expiry mid-flow · airplane mode during refresh · app killed during login · OS beta · OEM battery saver on · VoiceOver/TalkBack and font scale · PII in logs | Bugs, new scenario candidates for L2b, next charters |
+| Manual regression checklist (about 20 risk-ranked checks) | Per RC on T2 devices | QA | Login, restore, logout, token expiry, upgrade-in-place, deep link, permissions, low memory, rotation | Pass/fail per device; anything repeated twice gets automated |
+| Bug bash | Before the new app's first release | Everyone touching the SDK and the app | Free exploration, shared sheet | Fresh-eyes defects, usability issues |
 
-**Rule:** any defect found manually leads to a regression check at the lowest sensible level (usually a scenario in L2b); exploratory should *shrink* over time for known areas and move to new ones.
+**Rule:** any defect found manually leads to a regression check at the lowest sensible level (usually an L2b scenario). Exploratory effort should shrink for known areas and move to new ones.
 
-**Upgrade and data migration (R14).** Apps upgrade the SDK; users upgrade the app with a session already stored. A change of storage format, key alias or Keychain accessibility can log everyone out or crash on launch. Controls:
-- **Persisted-state fixtures:** the contract suite includes a stored session written by the *previous* release (golden file / Keychain item / `SharedPreferences` blob); the new version must restore it or migrate it explicitly.
-- **Upgrade-in-place test (L5, RC):** install the app with SDK N-1, log in, install over it with SDK N, assert session still valid. Android via `adb install -r`, iOS via simulator install over.
-- **Downgrade/rollback note:** if a storage format changes, the release notes say whether rollback is safe.
-This is described, not implemented in the demo; the auth example shows where the fixture would plug in (§4).
+### 1.3 How the SDK is tested through its life cycle
+
+| Stage | What runs | Gate | Who sees the result |
+|---|---|---|---|
+| Developer, locally | `run_all.sh` (L2 in seconds); L0 and L1 | none | Developer |
+| Pull request | L0, L1, L2a, L2b, affected L3 (path-aware, per platform) | **Blocking**, under 15 min | PR author, module owner, consumer owners |
+| Merge to main | Same gate again plus change log entry | Blocking | Platform team |
+| Nightly | L3 all pairs with TSan, L3b on the full OS matrix, L4, flaky report | Non-blocking, triaged next morning | QA, module teams |
+| Release candidate | Everything above, contracts vs N-1/N-2, L5 canary and upgrade test, L6, L7, release checklist | **Blocking** | Release manager (go/no-go) |
+| After release | Crash-free and auth-error rates, staged rollout by app, support channel | Rollback or hotfix criteria | Platform team |
+
+### 1.4 Versions and compatibility (R4)
+
+- **`compat.yaml` is the source of truth** for SDK version, per-module versions and dependencies, supported OS versions, and each consuming app's pins. `tools/gen_matrix.py pr|rc` turns it into CI jobs (min and max OS on a PR; full OS list, previous releases and canary on an RC) and rejects a consumer pinning an unknown module.
+- **SemVer per module.** Public API or behaviour break = major; additive = minor; fix = patch. L2a enforces this mechanically.
+- **Umbrella version = known-good set.** The SDK version pins a tested set of module versions; apps pin the umbrella unless they opt out and accept the risk.
+- **Support window:** N and N-1 majors fully supported, N-2 security fixes only. Every supported combination is in the contract-vs-release matrix; anything else is "unsupported" and published as such.
+- **Deprecation:** deprecated API stays one minor release with a compiler warning and a migration note; apps are told at deprecation, not at removal.
+- **Published matrix and changelog:** each release states what changed, which consumer scenarios were touched, supported combinations, and whether storage formats changed (safe to roll back or not).
+- **Hotfix:** a patch can be cut from the last tag; the previous umbrella version stays downloadable.
+
+### 1.5 Ownership and communication
+
+Most integration failures are coordination failures first. The pipeline makes them visible; these agreements prevent them.
+
+| Who | Owns | QA's role |
+|---|---|---|
+| Module teams (mine and others) | Module code, L1/L3 tests, their part of the shared scenarios | Provide platform, templates and review; do not write their tests for them |
+| SDK platform team | API surface, L2a/L2b gates, `compat.yaml`, release train | Owner of strategy, matrix and flake dashboard |
+| App teams (existing and new) | Their `contracts/consumers/<app>/` files, `@sdk-smoke` suite, app journeys | Pair on first scenarios; triage with the failure report |
+| Release manager | RC cut, go/no-go | Provide gate report and risk summary, not the decision |
+
+- **Definition of done for a module change** (including other teams' modules): unit tests; a contract scenario for any behaviour a consumer can see; API diff reviewed; changelog with affected consumers; no new flaky test; both platforms covered or a tracked parity exception.
+- **Rituals (reusing existing meetings where possible):** weekly 30-min compatibility triage (breaking changes, deprecations, top flakes); consumer scenarios and API changes reviewed in the PR via CODEOWNERS; 15-min RC readiness check; blameless post-mortem for every escaped defect (which layer should have caught it, plus one new test at the lowest level).
+- **Disagreement:** if a module team thinks a consumer scenario over-specifies behaviour, it is discussed in the PR with the app team; the scenario stays until agreed, and any override has an expiry date.
+
+### 1.6 Quality gates and KPIs
+
+| Gate | Pass criteria |
+|---|---|
+| PR | L2a clean or reviewed dump; L2b green on affected platforms; no new flaky test; owners approved |
+| Release | All L1 to L3b green and no quarantined test on changed modules; compatibility matrix green; each in-scope app builds and passes smoke against the RC; zero open P1/P2 regressions |
+
+| KPI | Target | Cadence |
+|---|---|---|
+| Time to signal (PR) | under 15 min | Weekly |
+| Flake rate | under 2% of runs | Weekly |
+| Escaped integration defects per release | decreasing trend | Per release |
+| Share of public API covered by a scenario | rising; 100% for CRITICAL modules | Monthly |
+| Supported-matrix coverage | 100% of supported combinations at RC | Per RC |
+| Time from failure to named owner | under 1 working day | Monthly |
+
+Metrics are used to re-score the risk register and to find where to invest, not to rank teams. The strategy is reviewed quarterly and after any escaped defect, new module, or team change.
 
 ---
 
-## 4. Automation example – Authentication
+## 2. Automation example
 
-**Key message:** one contract, two native runners; adding a case is one JSON edit, and platform drift becomes a failing test.
+**Key message:** one contract, two native runners. Adding a case is one JSON edit, and platform drift becomes a failing test. Everything in this section is code in the [repository](https://github.com/ricardorlg/sdk-qa-assignment); what is not coded is stated as future work.
 
-**Why auth:** CRITICAL on R3, consumed by every module, and its error semantics silently diverge between platforms.
+### 2.1 The demos and what each one proves
 
-```mermaid
-flowchart LR
-  S[contracts/**/*.json<br/>core + consumer scenarios] --> I[iOS runner<br/>Swift Testing]
-  S --> A[Android runner<br/>Kotlin / JUnit 5]
-  F[Fake auth server<br/>scripted responses, delays, request log] <--> I
-  F <--> A
-  I --> R[Parity result]
-  A --> R
+| # | Demo | Layer | What it tests | Code |
+|---|---|---|---|---|
+| D1 | **Shared behaviour contracts** | L2b | 10 scenarios per platform from one JSON file, run by a Swift and a Kotlin runner against a scripted fake server. The scenarios are: login, invalid credentials, transparent refresh, rejected refresh ends the session, 503 during refresh keeps the session, timeout keeps the session, malformed body maps to `serverError`, **concurrent refresh is single-flight**, logout, and one consumer scenario | [`contracts/auth/scenarios.json`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/contracts/auth/scenarios.json) · [`fake-auth-server/server.js`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/fake-auth-server/server.js) · [iOS runner](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/ios/Tests/AuthContractTests/AuthContractTests.swift) · [Android runner](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/android/src/test/kotlin/sdk/auth/AuthContractTest.kt) |
+| D2 | **Consumer-driven contract** | L2b | A scenario owned by a consuming app (`retail-app`): a valid token is reused without a server call. `CODEOWNERS` assigns the folder to the app team | [`contracts/consumers/retail-app/auth.json`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/contracts/consumers/retail-app/auth.json) · [`.github/CODEOWNERS`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/.github/CODEOWNERS) |
+| D3 | **API signature contract** | L2a | Android: `apiCheck` against the committed `.api` dump. iOS: `.swiftinterface` diff plus `swift-api-digester` against tag `v1.0.0`. Failures are posted as a diff in the job summary and as a PR comment | [`android/api/auth-sdk-android.api`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/android/api/auth-sdk-android.api) · [`ios/api/AuthSDK.swiftinterface`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/ios/api/AuthSDK.swiftinterface) · [`tools/ios_api.sh`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/tools/ios_api.sh) · [`tools/ci_api_report.sh`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/tools/ci_api_report.sh) |
+| D4 | **Native UI and lifecycle** | L3b | 4 Espresso and 4 XCUITest tests in a host app: SDK login screen, rotation or recreation, background and foreground, kill and relaunch with the session restored from secure storage | [Android](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/android-instrumented/app/src/androidTest/kotlin/sdk/auth/ui/AuthLifecycleTest.kt) · [iOS](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/ios-host/UITests/AuthLifecycleUITests.swift) |
+| D5 | **Compatibility manifest** | Versions | `compat.yaml` and a generator that expands it into CI matrices (`pr` or `rc`) and validates consumer pins | [`compat.yaml`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/compat.yaml) · [`tools/gen_matrix.py`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/tools/gen_matrix.py) |
+| D6 | **Flaky-test handling** | Reliability | Retry once; a pass on retry is reported as FLAKY (warning and artifact), never silently green | [`tools/retry_flag_flaky.sh`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/tools/retry_flag_flaky.sh) |
+| D7 | **Five demo pull requests** | CI | Each PR changes one thing, to show which layer catches it (§2.3) | [PRs #1 to #5](https://github.com/ricardorlg/sdk-qa-assignment/pulls) |
+
+How a scenario looks (abridged): it scripts the fake token endpoint, drives the client, and states expected results and final state. Expiry is driven by `expires_in` and slowness by `delayMs`, so there are no sleeps.
+
+```json
+{ "id": "concurrent_refresh_is_single_flight",
+  "tokenEndpointResponses": [
+    { "status": 200, "body": { "access_token": "a1", "refresh_token": "r1", "expires_in": 0 } },
+    { "status": 200, "delayMs": 200, "body": { "access_token": "a2", "refresh_token": "r2", "expires_in": 3600 } } ],
+  "steps": [
+    { "action": "login", "username": "user", "password": "secret", "expect": { "ok": true } },
+    { "action": "parallel", "calls": [
+      { "action": "getAccessToken", "expect": { "token": "a2" } },
+      { "action": "getAccessToken", "expect": { "token": "a2" } },
+      { "action": "getAccessToken", "expect": { "token": "a2" } } ] } ],
+  "final": { "authenticated": true, "tokenRequests": 2 } }
 ```
 
-- Each scenario scripts the fake server (status, body, optional `delayMs`), optional client config (`timeoutMs`), steps (including `parallel` calls), expected results/errors, and final state (authenticated, number and shape of requests).
-- Error names are part of the contract: `invalidCredentials`, `sessionExpired`, `serverError`, `networkError`, `notAuthenticated`.
-- **Scenarios (10 per platform):** login, invalid credentials, transparent refresh, rejected refresh ends session, 503 during refresh keeps session, timeout keeps session, malformed body → `serverError`, **concurrent refresh is single-flight**, logout, and one consumer scenario (token cached between calls).
-- No sleeps: expiry is driven by `expires_in`; slowness by scripted `delayMs`.
-
-**What the example proved** (`./run_all.sh`, `./run_native.sh`)
+### 2.2 What running it found
 
 | Check | Result |
 |---|---|
-| 10 contract scenarios, iOS and Android | pass on both |
-| Concurrent refresh (new scenario, before fixing the code) | **failed on both** (duplicate refreshes) → fixed: Swift in-flight task, Kotlin lock |
-| Malformed body (new scenario, before fixing) | **failed on Android only** (`JSONException` escaped) → mapped to `serverError` |
-| Injected iOS-only bug (503 treated as session expiry) | caught by `server_error_keeps_session` |
-| Added public Kotlin symbol | `apiCheck` fails with the exact diff until `apiDump` is reviewed |
-| Renamed public Swift parameter label | `tools/ios_api.sh check` shows the exact diff; `swift-api-digester` classifies it as a rename (breaking) |
-| L3b native tests: 4 Espresso + 4 XCUITest | pass locally (API 36 / iOS 18) and on GitHub-hosted runners (Android API 29 and 36, iOS 18.5); iOS 26.2 failed once and was not investigated |
-| Keychain replaced by in-memory store | relaunch test fails (test is sensitive) |
+| 10 contract scenarios, iOS and Android | Pass on both |
+| Concurrent refresh (new scenario, run *before* fixing the code) | **Failed on both platforms**: duplicate refreshes. Fixed with an in-flight task (Swift) and a lock (Kotlin) |
+| Malformed response body (new scenario, run before fixing) | **Failed on Android only**: a `JSONException` escaped. Mapped to `serverError` |
+| Injected iOS-only bug (503 treated as session expiry) | Caught by `server_error_keeps_session` |
+| Keychain replaced by an in-memory store | The relaunch test fails, so the test is sensitive |
+| L3b native tests | Pass locally and on GitHub-hosted runners (Android API 29 and 36, iOS 18.5); iOS 26.2 failed once and was not investigated |
 
-**Quick-feedback evidence: five demo pull requests on GitHub** (private repo `ricardorlg/sdk-qa-assignment`). Each changes one thing; the PR gate reports which layer catches it, in about 1.5 to 3 minutes, and only runs the platform whose paths changed.
+### 2.3 Demo pull requests: quick feedback in practice
+
+Each PR is a separate branch in the private repo. The PR Gate reports which layer catches the change in about 1.5 to 3 minutes and runs only the platform whose paths changed.
 
 | PR | Platform | What it breaks | L2a signature | L2b behaviour | Why |
 |---|---|---|---|---|---|
-| #1 | Android | public `login` renamed to `signIn` | **fails** (`apiCheck` diff) | fails (runner no longer compiles) | breaking API change |
-| #2 | iOS | single-flight refresh removed (internal) | passes | **fails** (`concurrent_refresh_is_single_flight`) | signature unchanged, behaviour regressed; Android still green, so the bug is iOS-only |
-| #3 | iOS | new public property `hasSession` | **fails** (diff) | passes | additive change: needs review, digester does not call it breaking |
-| #4 | Android | refresh lock removed (internal) | passes | **fails** | same bug class as #2, on Android |
-| #5 | iOS | `KeychainSessionStore.init(service:)` becomes `init(keychainService:)` | **fails** | passes | `swift-api-digester` vs tag `v1.0.0`: "init(service:) has been removed" (breaking) |
+| [#1](https://github.com/ricardorlg/sdk-qa-assignment/pull/1) | Android | public `login` renamed to `signIn` | **fails** (`apiCheck` diff) | fails (runner no longer compiles) | Breaking API change |
+| [#2](https://github.com/ricardorlg/sdk-qa-assignment/pull/2) | iOS | single-flight refresh removed (internal) | passes | **fails** | Signature unchanged, behaviour regressed; Android stays green, so the bug is iOS-only |
+| [#3](https://github.com/ricardorlg/sdk-qa-assignment/pull/3) | iOS | new public property `hasSession` | **fails** (diff) | passes | Additive change: needs review, but the digester does not call it breaking |
+| [#4](https://github.com/ricardorlg/sdk-qa-assignment/pull/4) | Android | refresh lock removed (internal) | passes | **fails** | Same bug class as #2, on Android |
+| [#5](https://github.com/ricardorlg/sdk-qa-assignment/pull/5) | iOS | `KeychainSessionStore.init(service:)` becomes `init(keychainService:)` | **fails** | passes | `swift-api-digester` vs `v1.0.0`: "init(service:) has been removed" (breaking) |
 
-What this shows: signature checks (L2a) and behaviour contracts (L2b) catch different things and both are needed (#2 and #4 are invisible to L2a; #3 and #5 are invisible to L2b). L2a diffs are posted to the job summary and as a sticky PR comment; test results appear as a JUnit check.
+L2a and L2b catch different things and both are needed: #2 and #4 are invisible to L2a, and #3 and #5 are invisible to L2b.
 
-**Limitations:** `AuthClient` classes are minimal stand-ins; Android store uses `SharedPreferences` (not Keystore); the Android cold-start test simulates a new process; iOS API check uses a committed `.swiftinterface` baseline plus `swift-api-digester` (SwiftPM's `diagnose-api-breaking-changes` does not support iOS targets); the baseline text depends on the Xcode version, so it is regenerated from the CI toolchain (`macos-26`) and a toolchain upgrade means a reviewed baseline update; the digester runs in ABI mode and its "new API without @available" notices are ignored because additive API is not breaking; Swift Testing reports the 10 scenarios as one parameterised test in JUnit, so the failing scenario is read from the log; real devices and other OEM emulators are not covered (described in §3, not built).
+### 2.4 Not coded (future work)
+
+| Idea | How I would do it |
+|---|---|
+| L1 module unit tests and L3 module-pair tests | Same fake server and DI; pair tests chosen from `compat.yaml` dependencies and run with Thread Sanitizer |
+| Persisted-state fixture and upgrade-in-place test | Commit a session blob written by the previous release; restore it in the new version; for the app-level test, install N-1 then N over it |
+| L4 harness E2E against staging | Point the host app at a staging URL with test accounts; 3 to 5 journeys |
+| Consumer canary and `@sdk-smoke` | Build each app with the RC and with the previous SDK; run a tagged smoke in the app's own pipeline |
+| Real-device runs | Run the existing Espresso and XCUITest on a device farm (§3, future work) |
+| Parity report | Publish per-scenario pass/fail per platform in one table |
+| Mutation testing on the contract runners | Prove the scenarios fail when the code is wrong (the manual fault injections above are a first, partial version) |
+
+**Limitations of the example.** `AuthClient` classes are minimal stand-ins. The Android store uses `SharedPreferences`, not Keystore. The Android cold-start test simulates a new process. SwiftPM's API-breakage tool does not support iOS targets, so the iOS check is a committed `.swiftinterface` baseline plus `swift-api-digester`. The baseline text depends on the Xcode version, so it is regenerated from the CI toolchain and a toolchain upgrade needs a reviewed baseline update. The digester runs in ABI mode and its "new API without @available" notices are ignored because additive API is not breaking. Swift Testing reports the 10 scenarios as one parameterised test in JUnit, so the failing scenario is read from the log.
 
 ---
 
-## 5. CI/CD and release validation (GitHub Actions)
+## 3. CI/CD and release validation
 
-**Key message:** fast, blocking gates on every PR; breadth (matrix, canary, full device set) on nightly and release candidates; every failure carries an owner and a cause category.
+**Key message:** fast, blocking gates on every PR; breadth (OS matrix, canary, real devices) on nightly runs and release candidates; every failure carries an owner and a cause category.
 
-Implemented as three staged workflows in `.github/workflows/`, one per stage of the cycle:
-
-| Workflow | Trigger | Content | Status |
-|---|---|---|---|
-| **PR Gate** (`pr.yml`) | every PR | path-aware: Android job only if `android/**` changed, iOS job only if `ios/**` changed, both if `contracts/**` or the fake server changed. Each runs L2a and L2b (L2b still runs when L2a fails), publishes a JUnit check, a job summary and a sticky comment with the API diff | verified on GitHub (`ubuntu-latest`, `macos-26`), see the demo PRs in §4 |
-| **Native UI** (`ui-native.yml`) | nightly, manual | Espresso and XCUITest over the OS matrix in `compat.yaml`; flaky report artifact | ran once: Android API 29/36 and iOS 18.5 passed (6 to 11 min), iOS 26.2 failed after 16 min and has not been diagnosed |
-| **Release Validation** (`release.yml`) | tag `rc-*`, manual | PR gate, then native UI matrix, then contract-vs-previous-releases and consumer canary | gate and UI reuse the other workflows; the last two jobs are specified stubs |
-
-UI tests are deliberately not a PR gate (6 to 16 minutes per job). Actions are on their latest major versions (checkout v7, setup-node v7 on Node 24, setup-java v6, upload-artifact v7, gradle v6); the macOS runner is `macos-26`, the newest label GitHub offers today.
+### 3.1 The pipeline
 
 ```mermaid
 flowchart LR
-  PR[Pull request] --> P[Detect changed paths]
-  P --> A[PR Gate: L2a + L2b<br/>only the affected platform<br/>JUnit check + API diff comment]
-  A --> M[Merge]
-  M --> N[Nightly: native UI Espresso + XCUITest,<br/>OS matrix, flaky report]
-  M --> RC[RC tag]
-  RC --> X[Generated matrix from compat.yaml<br/>OS x contracts vs N-1/N-2]
-  X --> K[Consumer canary: apps built against RC<br/>and previous SDK]
+  DEV[Developer<br/>run_all.sh] --> PR[Pull request]
+  PR --> P[Detect changed paths]
+  P -->|android/**| AND[Android job<br/>L2a apiCheck + L2b]
+  P -->|ios/**| IOS[iOS job<br/>L2a digester + L2b]
+  P -->|contracts/** or compat.yaml| BOTH[Both platforms<br/>parity gate]
+  AND --> REP[JUnit check + API diff comment]
+  IOS --> REP
+  BOTH --> REP
+  REP --> M[Merge to main]
+  M --> N[Nightly: L3b Espresso + XCUITest<br/>OS matrix + flaky report]
+  M --> RC[Tag rc-*]
+  RC --> X[Matrix from compat.yaml<br/>PR gate + native UI]
+  X --> K[Contracts vs N-1/N-2<br/>consumer canary: planned]
   K --> G{Release gates}
   G -->|pass| R[Publish + changelog]
   G -->|fail| F[Owner-routed report]
+  classDef planned stroke-dasharray: 4 3,fill:#f5f5f5,color:#666
+  class K planned
 ```
 
-**PR gates (blocking, target < 15 min; measured 1.5 to 3 min for the implemented subset):** **L2a** unreviewed API change fails · **L2b** failing consumer scenario blocks · a change to `contracts/` runs both platform runners (parity gate) · path-based selection with `dorny/paths-filter`. Planned but not built: lint, L1 and L3 for affected modules. L3b native UI is not a PR gate; it runs nightly and on RC, and could be made a PR gate for UI/storage/session paths once its duration is acceptable.
+Solid boxes are built and ran on GitHub; the dashed box is a stub.
 
-**Release gates (blocking):** all L1–L3 green and no quarantined test on changed modules · compatibility matrix green · every in-scope consumer app builds and passes smoke against the RC · zero open P1/P2 regressions · coverage and mutation score on changed code do not drop (ratchet).
+### 3.2 The three workflows
 
-**Compatibility validation**
-- `compat.yaml` is the source of truth; `tools/gen_matrix.py pr|rc` expands it: min/max OS on PR, full OS list plus contracts-vs-previous-releases plus canary on RC. It also rejects an app pinning an unknown module.
-- **Differential canary:** build each app with the RC *and* the previous SDK; failing only on the RC isolates SDK regressions from app changes.
+Each stage of the cycle is its own file in `.github/workflows/`.
 
-**Versioning and compatibility policy (assumed, to be agreed with the platform lead)**
-- **SemVer per module.** Public API/behaviour break = major; additive = minor; fix = patch. L2a decides this mechanically: an API diff with removals or renames cannot ship as minor/patch.
-- **SDK umbrella version** pins a tested set of module versions (a *known-good set*); `compat.yaml` is that set plus the OS ranges. Apps pin the umbrella, not individual modules, unless they opt out and accept the risk.
-- **Support window:** N and N-1 majors fully supported, N-2 security fixes only; every supported combination appears in the contract-vs-release matrix. Anything outside is "unsupported", stated in the published matrix.
-- **Deprecation:** deprecated API stays one minor release with a compiler warning and a migration note before removal in the next major; apps are told at deprecation, not at removal.
-- **Cross-module rules:** a module declares the module and OS versions it needs; CI rejects a graph that violates them (`gen_matrix.py` already rejects unknown pins).
-- **Published matrix + changelog:** every release publishes what changed, who is affected (consumer scenarios that were touched), supported OS/module combinations, and whether storage formats changed (R14).
-- **Hotfix and rollback:** a patch can be cut from the last release tag; the previous umbrella version stays downloadable; the upgrade test (§3) says whether rollback is safe.
+| Workflow | Trigger | What it does | Status |
+|---|---|---|---|
+| **PR Gate** ([`pr.yml`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/.github/workflows/pr.yml)) | Every PR | Path-aware (`dorny/paths-filter`): Android job only if `android/**` changed, iOS job only if `ios/**` changed, both if `contracts/**`, `fake-auth-server/**` or `compat.yaml` changed. Each job runs L2a and L2b (L2b still runs when L2a fails, so one run shows every problem) and publishes a JUnit check, a job summary and a sticky PR comment with the API diff | **Built**, verified on `ubuntu-latest` and `macos-26` |
+| **Native UI** ([`ui-native.yml`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/.github/workflows/ui-native.yml)) | Nightly, manual | Espresso and XCUITest over the OS matrix generated from `compat.yaml`; flaky-report artifact | **Built**; Android API 29 and 36 and iOS 18.5 passed, iOS 26.2 failed once (not diagnosed) |
+| **Release Validation** ([`release.yml`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/.github/workflows/release.yml)) | Tag `rc-*`, manual | Calls the PR gate and the native UI matrix, then contract-vs-previous-releases and consumer canary | Gate and UI reuse the other workflows; the last two jobs are **stubs** |
 
-**Slow or unstable tests**
-- `tools/retry_flag_flaky.sh`: retry once; pass-on-retry is reported as FLAKY (warning + artifact), never silently green.
-- Auto-quarantine after a flake-rate threshold: non-blocking, with an owner and a 2-week expiry (fix or delete).
+Design choices:
+- **UI tests are deliberately not a PR gate** (6 to 16 min per job). They run nightly and on RCs, and could become a PR gate for UI, storage and session paths once their duration is acceptable.
+- **Failures are readable where developers look:** the API diff appears in the job summary and as a PR comment; test results appear as a JUnit check (`action-junit-report` with `comment: true`); each report states module and version, platform and cause category.
+- **Hosted macOS minutes are costly**, which is another reason for path filtering.
+- Actions are on their latest major versions, and the macOS runner is `macos-26`, the newest label GitHub offers today.
+
+### 3.3 Gates
+
+- **PR gate (blocking, target under 15 min; measured 1.5 to 3 min for the built subset):** L2a unreviewed API change fails · L2b failing consumer scenario blocks · a change to `contracts/` runs both platform runners (parity gate).
+- **Release gates (blocking):** all L1 to L3b green and no quarantined test on changed modules · compatibility matrix green · every in-scope app builds and passes smoke against the RC · zero open P1/P2 regressions · coverage and mutation score on changed code do not drop.
+
+### 3.4 Slow or unstable tests
+
+- `tools/retry_flag_flaky.sh`: retry once; a pass on retry is reported as FLAKY, never silently green.
+- Auto-quarantine after a flake-rate threshold: non-blocking, with an owner and a 2-week expiry (fix or delete). Before quarantining, check that the flake is not a real race (see §4).
 - Slow tests move down the pyramid or to nightly; each stage has a time budget.
 
-**Communicating failures:** every report states module + version, platform, cause category (product / dependency / test / environment), first-bad-commit when bisectable, and artifacts (logs, network trace, device info, seed). Routed by CODEOWNERS; a sticky PR comment (API diff) and a JUnit check for PRs, Slack for nightly/RC (not set up); one dashboard for flake rate, duration and gate pass rate.
+### 3.5 Future work for CI/CD
+
+| Item | Why and how |
+|---|---|
+| **Device farm** (Firebase Test Lab, BrowserStack, AWS Device Farm) | Real-device tier T2 on RCs; run the same Espresso and XCUITest bundles; choose devices from analytics |
+| **Slack (or Teams) notifications** | Nightly and RC summaries to a quality channel, tagging the owner from `CODEOWNERS`; PRs already get comments and checks |
+| **Required checks and branch protection** | Make the PR gate non-bypassable, with a merge queue |
+| **Implement the stubs** | Contract-vs-previous-releases (run the old tagged scenarios against the new build) and consumer canary |
+| **Add L0, L1 and L3 jobs** | Lint, module unit tests and affected module pairs, selected from `compat.yaml` |
+| **Sharding, caching and test-impact analysis** | Keep the PR gate under budget as the suite grows; track CI minutes per PR |
+| **Flake dashboard and metrics** | Trend of flake rate, time to signal and gate pass rate, fed from the JUnit results |
+| **Fix the iOS 26.2 UI job** and move the UI jobs to a PR gate for UI paths if duration allows | Currently unexplained failure |
+| **Dependency updates** | Dependabot or Renovate for actions and the Kotlin API validator, which has a newer release |
 
 ---
 
-## 6. Investigation – module 3.4 → 3.5 (Android green, iOS intermittent, only A+B together)
+## 4. Investigation scenario
 
 **Key message:** do not start from a theory. Start from the symptoms, collect evidence that survives the next run, make the failure reproducible, then change *one variable at a time* until each of the four causes (product, dependency, test, environment) is either confirmed or ruled out with data.
 
@@ -335,14 +433,14 @@ Each experiment has a predicted outcome for each cause, so the result discrimina
 - **Dependency hygiene:** commit lockfiles, diff the resolved graph in every PR, and fail on unexpected transitive changes.
 - **Release gate:** any module bump triggers the pair-compatibility job for every module that depends on it; a failing pair blocks the release train, not just the module.
 - **Contract:** document and test threading and init-order guarantees as part of the module's public contract.
-- **Diagnostics by default:** run metadata and artifacts uploaded on failure; flaky tests auto-flagged (§5) with owner and expiry.
+- **Diagnostics by default:** run metadata and artifacts uploaded on failure; flaky tests auto-flagged (§3.4) with owner and expiry.
 - **Process:** blameless post-mortem with root cause, why it escaped (which level should have caught it), and one new test at the lowest sensible level.
 
 **Communication:** I report on a fixed template (symptoms, evidence, hypotheses ruled in/out, next experiment, owner) in the shared thread; each update states what changed in the failure *rate*, so the two teams see the same facts.
 
 ---
 
-## 7. First three priorities
+## 5. Initial priorities
 
 **Assumption:** some automation exists (mostly UI/E2E), there is no platform-level strategy, and I join as the QA for the SDK platform.
 
@@ -356,53 +454,56 @@ Each experiment has a predicted outcome for each cause, so the result discrimina
 
 **Why this order.** (1) gives the data that justifies and sizes (2) and (3). (2) comes before (3) because contracts are the cheapest, fastest signal and the gates in (3) need something reliable to gate on. (3) reuses the ownership map from (1) and the contract jobs from (2). Priorities 2 and 3 can overlap once the baseline shows where the pain is; the order changes if (1) reveals a different top risk (for example a flaky pipeline that blocks every release: fix that first).
 
-**Quick wins in parallel (low effort, visible):** retry-and-flag for flaky tests, run metadata and artifacts uploaded on failure (used again in §6), a release-notes template with "who is affected".
+**Quick wins in parallel (low effort, visible):** retry-and-flag for flaky tests, run metadata and artifacts uploaded on failure (used again in §4), a release-notes template with "who is affected".
 
 **Intentionally postponed:** broad E2E expansion, full device-farm coverage, performance/security suites beyond the SDK contract, a custom test framework, Pact with a broker. Revisit after the baseline.
 
 ---
 
-## 8. Working with the teams (ownership, communication, definition of done)
+## 6. Future improvements
 
-**Key message:** most integration failures are coordination failures first. The pipeline makes them visible; these agreements prevent them.
+With more time I would improve the *design* of what is tested before adding more tests. Most slow and flaky UI tests are a symptom of logic that can only be reached through the UI.
 
-**Who owns what**
+**SDK and UI design patterns (both platforms)**
+- **Keep logic out of views.** Screens render state and send events; a ViewModel (or presenter/reducer) owns the logic. State is a plain value, so tests assert on state and not on pixels.
+- **Inject everything that is non-deterministic:** clock, storage, network, dispatcher/scheduler, random. This is what makes single-flight and expiry tests deterministic without sleeps.
+- **A headless core with a thin UI layer.** The auth logic should be testable with no UI at all; the UI module is a consumer of the core, and has its own small test suite.
+- **Stable test hooks:** accessibility identifiers (iOS) and test tags or resource ids (Android) defined once, shared by the screen and its tests.
 
-| Who | Owns | QA's role |
-|---|---|---|
-| Module teams (mine and others) | Module code, L1/L3 tests, the module's section of the shared scenarios | Provide the platform, templates and review; do not write their tests for them |
-| SDK platform team | API surface, L2a/L2b gates, `compat.yaml`, release train | Owner of strategy, matrix, flake dashboard |
-| App teams (existing and new) | Their `contracts/consumers/<app>/` files, `@sdk-smoke` suite, app journeys | Pair on first scenarios; triage with them using the failure report |
-| Release manager | RC cut, go/no-go | Provide the gate report and risk summary, not the decision |
+**Android**
+- **Robolectric** for fast JVM tests of Android-dependent code (storage, `Context`, `Activity` lifecycle) without an emulator; keep Espresso for what truly needs a device.
+- **ViewModel tests** with `kotlinx-coroutines-test` and Turbine for state flows; fake repositories instead of mocks where possible.
+- **Compose tests** (`createComposeRule`) if the SDK UI uses Compose, and **screenshot tests** (Paparazzi or Roborazzi) for visual regressions without devices.
+- **Robot/page-object pattern** for Espresso, so a UI change is fixed in one place.
+- Test orchestrator and clean state per test; Macrobenchmark for startup and init cost.
 
-**Definition of done for a module change** (including modules from other teams): unit tests; contract scenario added or updated for any behaviour a consumer can see; API diff reviewed (`apiDump` / `ios_api.sh dump`); changelog entry with affected consumers; no new flaky test; both platforms covered or an explicit, tracked parity exception.
+**iOS**
+- **ViewModel tests** with Swift Testing or XCTest, using async/await and an injected clock; protocol-based fakes for storage and network.
+- **Snapshot tests** (for example `swift-snapshot-testing`) for SDK screens across dark mode and Dynamic Type.
+- **Screen objects** for XCUITest, with accessibility identifiers; Xcode Test Plans to split fast and slow suites and to run with Thread Sanitizer.
+- Keep Keychain tests on a simulator with a clean state per run.
 
-**Rituals (light, no new meetings if existing ones can be used)**
-- **Weekly compatibility triage (30 min):** platform, one rep per module, one rep per app: open breaking changes, upcoming deprecations, matrix changes, top flakes.
-- **Contract review in the PR:** a change to a consumer scenario needs the owning app's approval (CODEOWNERS); a change to the public API needs the platform team's.
-- **RC readiness check (15 min per RC):** gate report, open P1/P2, exploratory results, go/no-go input.
-- **Blameless post-mortem** for every escaped defect: detection gap → new test at the lowest level.
-- **Channels:** one SDK-release announcement channel (what changed, who must act); one #sdk-quality channel for flake and CI health.
-
-**Handling disagreement.** If a module team thinks a consumer scenario over-specifies behaviour, the discussion happens in the PR with the app team; the default is to keep the scenario until agreed otherwise, and any override is recorded with an expiry date.
-
-**Quality metrics reported monthly** (kept few): escaped defects per release by module, gate pass rate and time-to-signal, flake rate, % of public API covered by a scenario, supported-matrix coverage. Used to re-score the risk register, not to rank teams.
+**Test practice and tooling**
+- Mutation testing on the contract runners (PIT for Kotlin; an equivalent on Swift) to prove the scenarios fail when the code is wrong.
+- Property-based or fuzz tests for parsing and token handling.
+- Review the test suites with a smell checklist (readability, reliability, diagnostic value) every quarter.
+- The remaining items are listed where they belong: CI and device farms in §3.5, unbuilt demos in §2.4.
 
 ---
 
-## 9. Risks, trade-offs and AI usage
+## 7. Risks, trade-offs and AI usage
 
 **Risks and mitigations**
 - *Contract friction* (blocked SDK PRs) → few, behaviour-focused scenarios, clear ownership, documented override.
 - *Over-specification* (freezing incidental behaviour) → only user-visible semantics belong in scenarios.
-- *Emulator cost/flakiness* → path filters, idling resources, quarantine.
+- *Emulator cost and flakiness* → path filters, idling resources, quarantine.
 - *Unknown starting point* → Priority 1 first; targets and risk scores are provisional.
 - *Adoption* → module teams own their tests; QA provides platform, tooling and signal.
 
-**Trade-offs:** native runners over one cross-platform framework (fidelity vs duplication, contained by shared scenarios) · in-process consumer contracts over Pact+broker (cheaper now) · fewer deterministic gating tests over breadth (breadth moves to nightly/exploratory) · reference clients are simplified stand-ins.
+**Trade-offs:** native runners over one cross-platform framework (fidelity vs duplication, contained by shared scenarios) · in-process consumer contracts over Pact with a broker (cheaper now) · fewer deterministic gating tests over breadth (breadth moves to nightly and exploratory) · a dummy SDK over a realistic one (the example is simple and fast to understand, but proves less about real-world complexity).
 
-**Assumptions to validate:** module ownership, number of consuming apps and pinning policy, release cadence, whether the SDK ships UI (L3b applies only then).
+**Assumptions** are listed in the Introduction (A1 to A7) and should be validated first.
 
-**AI usage.** GitHub Copilot was used as a pair to draft structure, scaffold the example (fake server, Swift/Kotlin runners, host apps, CI workflow) and iterate on wording. Approach, scope, risk scores and priorities were decided by me in dialogue. Output was validated rather than trusted: all tests were executed, and sensitivity was proven with deliberate faults (iOS-only 503 bug, API change, Keychain→memory store), each caught by the intended test. New scenarios were written first and run against unfixed code, which surfaced two genuine defects. The CI was run on GitHub-hosted runners and iterated until the PR gate was green; five demo PRs show which layer catches which change (§4). Anything not exercised (iOS 26.2 UI run, canary and previous-release jobs, real devices, most time targets) is labelled as such.
+**AI usage.** GitHub Copilot was used as a pair to draft structure, scaffold the example (fake server, Swift and Kotlin runners, host apps, CI workflows) and iterate on wording. Approach, scope, risk scores and priorities were decided by me in dialogue. Output was validated rather than trusted: all tests were executed, and sensitivity was proven with deliberate faults (iOS-only 503 bug, API change, Keychain replaced by memory store), each caught by the intended test. New scenarios were written first and run against unfixed code, which surfaced two genuine defects. The CI ran on GitHub-hosted runners and was iterated until the PR gate was green; the five demo PRs show which layer catches which change (§2.3). Anything not exercised (iOS 26.2 UI run, canary and previous-release jobs, real devices, most time targets) is labelled as such.
 
 **References:** Semantic Versioning 2.0 (semver.org) · Kotlin `binary-compatibility-validator` · Android *Testing strategies* (test pyramid, fidelity, cost of a bug) · Fowler, *The Practical Test Pyramid* · Satisfice HTSM (risk lens) · ISTQB risk-based testing practice.
