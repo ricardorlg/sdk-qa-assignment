@@ -194,7 +194,7 @@ flowchart LR
 
 **Key message:** fast, blocking gates on every PR; breadth (matrix, canary, full device set) on nightly and release candidates; every failure carries an owner and a cause category.
 
-Implemented as [`.github/workflows/sdk-ci.yml`](../.github/workflows/sdk-ci.yml) (jobs `contracts-*`, `plan`, `native-ui-*`, `contract-vs-release`, `consumer-canary`). Not executed on GitHub in this exercise; matrix generation and scripts were validated locally.
+Implemented as three staged workflows in `.github/workflows/`: `pr.yml` (PR gate: L2a/L2b contracts on both platforms, no emulators; verified green on GitHub-hosted `ubuntu-latest` and `macos-26`), `ui-native.yml` (nightly/on-demand Espresso and XCUITest over the `compat.yaml` OS matrix; a first run passed on Android API 29/36 and iOS 18.5, iOS 26.2 is still being investigated) and `release.yml` (RC tags: gate + UI + backward-compat and canary jobs, which are specified stubs). The iOS `.swiftinterface` baseline is tied to the CI Xcode version, so it is generated from a CI artifact.
 
 ```mermaid
 flowchart LR
