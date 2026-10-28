@@ -33,7 +33,8 @@ case "${1:-check}" in
            -BI "$2/Build/Products/Debug-iphonesimulator" -I "$OUT/Build/Products/Debug-iphonesimulator" \
            -bsdk "$SDK" -sdk "$SDK" -target arm64-apple-ios15.0-simulator -o "$OUT/api_diff.txt"
          cat "$OUT/api_diff.txt"
-         # the digester always prints section headers; any other non-blank line is a finding
-         ! grep -v -e '^/\*' -e '^[[:space:]]*$' "$OUT/api_diff.txt" | grep -q . ;;
+         # the digester always prints section headers; any other non-blank line is a finding,
+         # except additive-API notices (a new symbol is not a breaking change)
+         ! grep -v -e '^/\*' -e '^[[:space:]]*$' -e 'is a new API without' "$OUT/api_diff.txt" | grep -q . ;;
   *) echo "usage: $0 check|dump|breaking <dir>"; exit 2 ;;
 esac
