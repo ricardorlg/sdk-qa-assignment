@@ -1,0 +1,51 @@
+name: 3-release-validation
+
+# Stage 3: release candidate (tag rc-*). Re-runs the PR gate, the native UI matrix,
+# then backward-compat and consumer-canary checks (the last two are specified, not yet implemented).
+on:
+  push:
+    tags: ["rc-*"]
+  workflow_dispatch:
+
+jobs:
+  gate:
+    uses: ./.github/workflows/pr.yml
+
+  native-ui:
+    uses: ./.github/workflows/ui-native.yml
+
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      contract_vs_release: ${{ steps.gen.outputs.contract_vs_release }}
+      canary: ${{ steps.gen.outputs.canary }}
+    steps:
+      - uses: actions/checkout@v7
+      - run: pip install pyyaml
+      - id: gen
+        run: |
+          python3 tools/gen_matrix.py rc > matrix.json
+          for k in contract_vs_release canary; do
+            echo "$k=$(python3 -c "import json;print(json.dumps(json.load(open('matrix.json'))['$k']))")" >> "$GITHUB_OUTPUT"
+          done
+
+  contract-vs-release:
+    needs: plan
+    if: needs.plan.outputs.contract_vs_release != 'null'
+    strategy:
+      matrix: ${{ fromJSON(needs.plan.outputs.contract_vs_release) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run the current scenario suite against release ${{ matrix.release }}
+        run: echo "TODO check out tag v${{ matrix.release }} of the module and run contracts/ against it (specified, not yet implemented)"
+
+  consumer-canary:
+    needs: plan
+    if: needs.plan.outputs.canary != 'null'
+    strategy:
+      matrix: ${{ fromJSON(needs.plan.outputs.canary) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Differential canary for ${{ matrix.app }}
+        run: echo "TODO build ${{ matrix.app }} against RC and against the previous SDK; failure only on RC => SDK regression (specified, not yet implemented)"

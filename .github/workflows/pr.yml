@@ -1,0 +1,60 @@
+name: 1-pr-gate
+
+# Stage 1: every pull request. Fast, blocking, no emulators/simulators.
+# Signature contract (L2a) + behaviour contract (L2b, core + consumer scenarios) on both platforms.
+on:
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+concurrency:
+  group: pr-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: 24 }
+      - uses: actions/setup-java@v6
+        with: { distribution: temurin, java-version: 21 }
+      - uses: gradle/actions/setup-gradle@v6
+      - name: L2a signature contract (apiCheck)
+        run: gradle -p android apiCheck --console=plain
+      - name: L2b behaviour contract (core + consumer scenarios)
+        run: |
+          node fake-auth-server/server.js & sleep 1
+          CONTRACT_DIR=$PWD/contracts gradle -p android test --console=plain
+
+  contracts-ios:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v7
+        with: { node-version: 24 }
+      - name: Toolchain
+        run: xcodebuild -version && swift --version
+      - name: L2a signature contract (swiftinterface diff vs committed baseline)
+        run: EMIT=$RUNNER_TEMP/AuthSDK.swiftinterface tools/ios_api.sh check
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: ios-api-generated
+          path: ${{ runner.temp }}/AuthSDK.swiftinterface
+      - name: L2a breaking-change classification (swift-api-digester vs last release tag)
+        if: github.event_name == 'pull_request'
+        run: |
+          TAG=$(git describe --tags --abbrev=0 --match 'v*' || true)
+          [ -z "$TAG" ] && { echo "no release tag yet, skipping"; exit 0; }
+          git worktree add /tmp/base "$TAG"
+          (cd /tmp/base/ios && xcodebuild build -scheme AuthSDK -derivedDataPath /tmp/base-dd \
+            -sdk "$(xcrun --sdk iphonesimulator --show-sdk-path)" \
+            -destination "generic/platform=iOS Simulator" BUILD_LIBRARY_FOR_DISTRIBUTION=YES -quiet)
+          tools/ios_api.sh breaking /tmp/base-dd
+      - name: L2b behaviour contract
+        run: |
+          node fake-auth-server/server.js & sleep 1
+          CONTRACT_DIR=$PWD/contracts swift test --package-path ios
