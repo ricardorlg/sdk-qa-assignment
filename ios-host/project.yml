@@ -1,0 +1,39 @@
+name: AuthHost
+options:
+  bundleIdPrefix: sdk.auth
+  deploymentTarget:
+    iOS: "17.0"
+packages:
+  AuthSDK:
+    path: ../ios
+targets:
+  AuthHost:
+    type: application
+    platform: iOS
+    sources: [App]
+    dependencies:
+      - package: AuthSDK
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: sdk.auth.host
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking: YES
+  AuthHostUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [UITests]
+    dependencies:
+      - target: AuthHost
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: sdk.auth.host.uitests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  AuthHost:
+    build:
+      targets:
+        AuthHost: all
+    test:
+      targets: [AuthHostUITests]

@@ -1,0 +1,99 @@
+import Combine
+import Foundation
+import Security
+import Swift
+import SwiftUI
+import _Concurrency
+import _StringProcessing
+import _SwiftConcurrencyShims
+public enum AuthError : Swift::Error, Swift::Equatable {
+  case invalidCredentials, sessionExpired, notAuthenticated, serverError, networkError
+  public static func == (a: AuthSDK::AuthError, b: AuthSDK::AuthError) -> Swift::Bool
+  public func hash(into hasher: inout Swift::Hasher)
+  public var hashValue: Swift::Int {
+    get
+  }
+}
+public struct Session : Swift::Codable, Swift::Equatable, Swift::Sendable {
+  public let accessToken: Swift::String
+  public let refreshToken: Swift::String
+  public let expiresAt: Foundation::Date
+  public static func == (a: AuthSDK::Session, b: AuthSDK::Session) -> Swift::Bool
+  public func encode(to encoder: any Swift::Encoder) throws
+  public init(from decoder: any Swift::Decoder) throws
+}
+public protocol SessionStore : Swift::Sendable {
+  func load() -> AuthSDK::Session?
+  func save(_ session: AuthSDK::Session?)
+}
+final public class InMemorySessionStore : AuthSDK::SessionStore, @unchecked Swift::Sendable {
+  public init()
+  final public func load() -> AuthSDK::Session?
+  final public func save(_ session: AuthSDK::Session?)
+  @objc deinit
+}
+public actor AuthClient {
+  public init(baseURL: Foundation::URL, store: any AuthSDK::SessionStore = InMemorySessionStore(), session: Foundation::URLSession = .shared, timeout: Foundation::TimeInterval = 10)
+  public var isAuthenticated: Swift::Bool {
+    get
+  }
+  public func login(username: Swift::String, password: Swift::String) async throws
+  public func getAccessToken() async throws -> Swift::String
+  public func logout()
+  @objc deinit
+  @_semantics("defaultActor") nonisolated final public var unownedExecutor: _Concurrency::UnownedSerialExecutor {
+    get
+  }
+}
+final public class KeychainSessionStore : AuthSDK::SessionStore, @unchecked Swift::Sendable {
+  public init(service: Swift::String = "sdk.auth.session")
+  final public func load() -> AuthSDK::Session?
+  final public func save(_ session: AuthSDK::Session?)
+  @objc deinit
+}
+@_Concurrency::MainActor final public class LoginViewModel : Foundation::ObservableObject {
+  @Combine::Published<Swift::String> @_projectedValueProperty($username) @_Concurrency::MainActor final public var username: Swift::String {
+    get
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    set
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    _modify
+  }
+  @_Concurrency::MainActor final public var $username: Combine::Published<Swift::String>.Combine::Publisher {
+    get
+    @available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
+    set
+  }
+  @Combine::Published<Swift::String> @_projectedValueProperty($password) @_Concurrency::MainActor final public var password: Swift::String {
+    get
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    set
+    @available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    _modify
+  }
+  @_Concurrency::MainActor final public var $password: Combine::Published<Swift::String>.Combine::Publisher {
+    get
+    @available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
+    set
+  }
+  @Combine::Published<Swift::String> @_projectedValueProperty($status) @_Concurrency::MainActor final public var status: Swift::String {
+    get
+  }
+  @_Concurrency::MainActor final public var $status: Combine::Published<Swift::String>.Combine::Publisher {
+    get
+  }
+  @_Concurrency::MainActor public init(client: AuthSDK::AuthClient)
+  @_Concurrency::MainActor final public func signIn() async
+  public typealias ObjectWillChangePublisher = Combine::ObservableObjectPublisher
+  @objc deinit
+}
+@_Concurrency::MainActor @preconcurrency public struct LoginView : SwiftUICore::View {
+  @_Concurrency::MainActor @preconcurrency public init(client: AuthSDK::AuthClient)
+  @_Concurrency::MainActor @preconcurrency public var body: some SwiftUICore::View {
+    get
+  }
+  public typealias Body = @_opaqueReturnTypeOf("$s7AuthSDK9LoginViewV4bodyQrvp", 0) __
+}
+extension AuthSDK::AuthError : Swift::Hashable {}
+extension AuthSDK::LoginViewModel : Swift::Sendable {}
+extension AuthSDK::LoginView : Swift::Sendable {}

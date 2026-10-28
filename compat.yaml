@@ -1,0 +1,25 @@
+# Source of truth for what the SDK promises to support.
+# tools/gen_matrix.py expands it into CI jobs:
+#   pr  -> only the min and max OS per platform (fast delta)
+#   rc  -> every supported combination plus the previous-release contract runs
+sdk:
+  version: 3.5.0
+  previous_releases: [3.4.0, 3.3.0]   # contract suite is re-run against N-1 / N-2
+
+platforms:
+  ios:
+    os_versions: ["18.0", "26.0"]
+    min_os: "18.0"
+  android:
+    os_versions: [29, 34, 36]         # API levels
+    min_os: 29
+
+modules:
+  auth: { version: 3.5.0, depends_on: [] }
+  storage: { version: 3.5.0, depends_on: [] }
+  payments: { version: 3.5.0, depends_on: [auth, storage] }
+
+consumer_apps:
+  - name: retail-app
+    pins: { auth: "~> 3.4", storage: "~> 3.4" }
+    canary: true

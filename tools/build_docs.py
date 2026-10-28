@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+"""Build PDFs from the Markdown docs. Mermaid blocks are rendered to PNG first.
+
+Outputs docs/dist/strategy.pdf (document) and docs/dist/slides.pdf (Marp deck).
+Needs: node/npx, Google Chrome (CHROME env to override), python `markdown`.
+"""
+import hashlib
+import os
+import re
+import subprocess
+import tempfile
+from pathlib import Path
+
+import markdown
+
+DOCS = Path(__file__).resolve().parent.parent / "docs"
+DIST = DOCS / "dist"
+IMG = DIST / "img"
+CHROME = os.environ.get("CHROME", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+BLOCK = re.compile(r"```mermaid\n(.*?)```", re.S)
+
+DIST.mkdir(exist_ok=True)
+IMG.mkdir(exist_ok=True)
+puppeteer_cfg = Path(tempfile.mkdtemp()) / "pp.json"
+puppeteer_cfg.write_text('{"executablePath": "%s", "args": ["--no-sandbox"]}' % CHROME)
+
+
+def render(code: str) -> Path:
+    out = IMG / f"{hashlib.md5(code.encode()).hexdigest()[:10]}.png"
+    if not out.exists():
+        src = out.with_suffix(".mmd")
+        src.write_text(code)
+        subprocess.run(
+            ["npx", "-y", "@mermaid-js/mermaid-cli", "-i", str(src), "-o", str(out), "-p", str(puppeteer_cfg),
+             "-s", "2", "-b", "white"],
+            check=True, capture_output=True, env={**os.environ, "PUPPETEER_SKIP_DOWNLOAD": "1"},
+        )
+        src.unlink()
+    return out
+
+
+def with_images(text: str) -> str:
+    return BLOCK.sub(lambda m: f"![diagram]({render(m.group(1)).as_posix()})", text)
+
+
+# Document -> HTML -> PDF
+body = markdown.markdown(with_images((DOCS / "strategy.md").read_text()), extensions=["tables", "fenced_code"])
+css = """body{font-family:-apple-system,Helvetica,Arial,sans-serif;font-size:10.5px;line-height:1.4;margin:0 }
+h1{font-size:20px;color:#0b5fff}h2{font-size:15px;border-bottom:1px solid #ccc;padding-bottom:2px;margin-top:16px}
+table{border-collapse:collapse;width:100%;font-size:9px;margin:6px 0}td,th{border:1px solid #bbb;padding:3px 5px;vertical-align:top}
+th{background:#f0f4ff}code{background:#f3f3f3;padding:0 2px}img{max-width:100%}"""
+html = DIST / "strategy.html"
+html.write_text(f"<html><head><meta charset='utf-8'><style>{css}</style></head><body>{body}</body></html>")
+subprocess.run([CHROME, "--headless=new", "--no-sandbox", "--disable-gpu", "--no-pdf-header-footer",
+                f"--print-to-pdf={DIST / 'strategy.pdf'}", html.as_uri()], check=True, capture_output=True)
+html.unlink()
+
+# Deck -> Marp PDF
+tmp = DIST / "slides_render.md"
+tmp.write_text(with_images((DOCS / "slides.md").read_text()))
+subprocess.run(["npx", "-y", "@marp-team/marp-cli", str(tmp), "--pdf", "--allow-local-files",
+                "-o", str(DIST / "slides.pdf")], check=True, capture_output=True,
+               env={**os.environ, "CHROME_PATH": CHROME})
+if os.environ.get("PREVIEW"):
+    subprocess.run(["npx", "-y", "@marp-team/marp-cli", str(tmp), "--images", "png", "--allow-local-files",
+                    "-o", str(DIST / "pv" / "slide.png")], check=True, capture_output=True,
+                   env={**os.environ, "CHROME_PATH": CHROME})
+tmp.unlink()
+print("built", DIST / "strategy.pdf", DIST / "slides.pdf")

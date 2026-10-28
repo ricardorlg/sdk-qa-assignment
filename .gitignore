@@ -1,0 +1,7 @@
+build/
+.build/
+.gradle/
+.kotlin/
+*.xcodeproj/
+node_modules/
+docs/dist/

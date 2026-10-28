@@ -1,0 +1,122 @@
+{
+  "version": "1.0",
+  "scenarios": [
+    {
+      "id": "login_success",
+      "description": "Valid credentials authenticate and expose the access token",
+      "tokenEndpointResponses": [
+        { "status": 200, "body": { "access_token": "a1", "refresh_token": "r1", "expires_in": 3600 } }
+      ],
+      "steps": [
+        { "action": "login", "username": "user", "password": "secret", "expect": { "ok": true } },
+        { "action": "getAccessToken", "expect": { "token": "a1" } }
+      ],
+      "final": { "authenticated": true, "tokenRequests": 1 }
+    },
+    {
+      "id": "login_invalid_credentials",
+      "description": "401 invalid_grant maps to invalidCredentials and leaves the client unauthenticated",
+      "tokenEndpointResponses": [
+        { "status": 401, "body": { "error": "invalid_grant" } }
+      ],
+      "steps": [
+        { "action": "login", "username": "user", "password": "bad", "expect": { "error": "invalidCredentials" } }
+      ],
+      "final": { "authenticated": false, "tokenRequests": 1 }
+    },
+    {
+      "id": "refresh_when_expired",
+      "description": "An expired access token is transparently refreshed using the refresh token",
+      "tokenEndpointResponses": [
+        { "status": 200, "body": { "access_token": "a1", "refresh_token": "r1", "expires_in": 0 } },
+        { "status": 200, "body": { "access_token": "a2", "refresh_token": "r2", "expires_in": 3600 } }
+      ],
+      "steps": [
+        { "action": "login", "username": "user", "password": "secret", "expect": { "ok": true } },
+        { "action": "getAccessToken", "expect": { "token": "a2" } }
+      ],
+      "final": { "authenticated": true, "tokenRequests": 2, "lastRequestGrantType": "refresh_token", "lastRequestRefreshToken": "r1" }
+    },
+    {
+      "id": "refresh_rejected_ends_session",
+      "description": "A rejected refresh token ends the session with sessionExpired",
+      "tokenEndpointResponses": [
+        { "status": 200, "body": { "access_token": "a1", "refresh_token": "r1", "expires_in": 0 } },
+        { "status": 400, "body": { "error": "invalid_grant" } }
+      ],
+      "steps": [
+        { "action": "login", "username": "user", "password": "secret", "expect": { "ok": true } },
+        { "action": "getAccessToken", "expect": { "error": "sessionExpired" } }
+      ],
+      "final": { "authenticated": false, "tokenRequests": 2 }
+    },
+    {
+      "id": "server_error_keeps_session",
+      "description": "A 503 during refresh is a transient serverError and does not end the session",
+      "tokenEndpointResponses": [
+        { "status": 200, "body": { "access_token": "a1", "refresh_token": "r1", "expires_in": 0 } },
+        { "status": 503, "body": {} }
+      ],
+      "steps": [
+        { "action": "login", "username": "user", "password": "secret", "expect": { "ok": true } },
+        { "action": "getAccessToken", "expect": { "error": "serverError" } }
+      ],
+      "final": { "authenticated": true, "tokenRequests": 2 }
+    },
+    {
+      "id": "logout_clears_session",
+      "description": "Logout clears tokens without contacting the server; token access then fails",
+      "tokenEndpointResponses": [
+        { "status": 200, "body": { "access_token": "a1", "refresh_token": "r1", "expires_in": 3600 } }
+      ],
+      "steps": [
+        { "action": "login", "username": "user", "password": "secret", "expect": { "ok": true } },
+        { "action": "logout", "expect": { "ok": true } },
+        { "action": "getAccessToken", "expect": { "error": "notAuthenticated" } }
+      ],
+      "final": { "authenticated": false, "tokenRequests": 1 }
+    },
+    {
+      "id": "concurrent_refresh_is_single_flight",
+      "description": "Concurrent callers with an expired token share ONE refresh request and all receive the new token (no refresh-token reuse race)",
+      "tokenEndpointResponses": [
+        { "status": 200, "body": { "access_token": "a1", "refresh_token": "r1", "expires_in": 0 } },
+        { "status": 200, "delayMs": 200, "body": { "access_token": "a2", "refresh_token": "r2", "expires_in": 3600 } }
+      ],
+      "steps": [
+        { "action": "login", "username": "user", "password": "secret", "expect": { "ok": true } },
+        { "action": "parallel", "calls": [
+          { "action": "getAccessToken", "expect": { "token": "a2" } },
+          { "action": "getAccessToken", "expect": { "token": "a2" } },
+          { "action": "getAccessToken", "expect": { "token": "a2" } }
+        ] }
+      ],
+      "final": { "authenticated": true, "tokenRequests": 2, "lastRequestGrantType": "refresh_token", "lastRequestRefreshToken": "r1" }
+    },
+    {
+      "id": "malformed_token_response_is_server_error",
+      "description": "A 200 response without required fields maps to serverError and must not crash or create a session",
+      "tokenEndpointResponses": [
+        { "status": 200, "body": { "unexpected": true } }
+      ],
+      "steps": [
+        { "action": "login", "username": "user", "password": "secret", "expect": { "error": "serverError" } }
+      ],
+      "final": { "authenticated": false, "tokenRequests": 1 }
+    },
+    {
+      "id": "timeout_during_refresh_keeps_session",
+      "description": "A network timeout during refresh maps to networkError and keeps the session so the caller can retry",
+      "clientConfig": { "timeoutMs": 300 },
+      "tokenEndpointResponses": [
+        { "status": 200, "body": { "access_token": "a1", "refresh_token": "r1", "expires_in": 0 } },
+        { "status": 200, "delayMs": 1500, "body": { "access_token": "a2", "refresh_token": "r2", "expires_in": 3600 } }
+      ],
+      "steps": [
+        { "action": "login", "username": "user", "password": "secret", "expect": { "ok": true } },
+        { "action": "getAccessToken", "expect": { "error": "networkError" } }
+      ],
+      "final": { "authenticated": true, "tokenRequests": 2 }
+    }
+  ]
+}

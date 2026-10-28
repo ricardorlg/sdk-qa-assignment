@@ -1,0 +1,6 @@
+# Last matching pattern wins.
+/contracts/auth/                  @org/sdk-platform
+# Consumer-driven contracts: new consumers need platform review; each consumer owns its folder.
+# A failing consumer scenario blocks SDK PRs.
+/contracts/consumers/             @org/sdk-platform
+/contracts/consumers/retail-app/  @org/retail-app-team

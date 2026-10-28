@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="auth_username" type="id" />
+    <item name="auth_password" type="id" />
+    <item name="auth_login_button" type="id" />
+    <item name="auth_status" type="id" />
+</resources>
