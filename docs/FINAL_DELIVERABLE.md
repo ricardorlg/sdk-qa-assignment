@@ -1,7 +1,7 @@
 # Mobile SDK Quality Engineering – Proposal
 
 **Role:** Senior Mobile QA Engineer (Platform / SDK) · **Status:** DRAFT v0.3
-**Companion files:** [`risk-matrix.md`](risk-matrix.md) (full risk analysis) · [`slides.md`](slides.md) (short deck) · [code repository](https://github.com/ricardorlg/sdk-qa-assignment)
+**Companion files:** [`risk-matrix.md`](risk-matrix.md) (full risk analysis) · [`slides.md`](slides.md) (short deck) · [`PROMPT_LIBRARY.md`](PROMPT_LIBRARY.md) (AI prompts) · [code repository](https://github.com/ricardorlg/sdk-qa-assignment)
 
 ---
 
@@ -504,6 +504,6 @@ With more time I would improve the *design* of what is tested before adding more
 
 **Assumptions** are listed in the Introduction (A1 to A7) and should be validated first.
 
-**AI usage.** GitHub Copilot was used as a pair to draft structure, scaffold the example (fake server, Swift and Kotlin runners, host apps, CI workflows) and iterate on wording. Approach, scope, risk scores and priorities were decided by me in dialogue. Output was validated rather than trusted: all tests were executed, and sensitivity was proven with deliberate faults (iOS-only 503 bug, API change, Keychain replaced by memory store), each caught by the intended test. New scenarios were written first and run against unfixed code, which surfaced two genuine defects. The CI ran on GitHub-hosted runners and was iterated until the PR gate was green; the five demo PRs show which layer catches which change (§2.3). Anything not exercised (iOS 26.2 UI run, canary and previous-release jobs, real devices, most time targets) is labelled as such.
+**AI usage.** The prompts used, in order, with what each produced and how it was validated, are in the [Prompt Library](PROMPT_LIBRARY.md). GitHub Copilot was used as a pair to draft structure, scaffold the example (fake server, Swift and Kotlin runners, host apps, CI workflows) and iterate on wording. Approach, scope, risk scores and priorities were decided by me in dialogue. Output was validated rather than trusted: all tests were executed, and sensitivity was proven with deliberate faults (iOS-only 503 bug, API change, Keychain replaced by memory store), each caught by the intended test. New scenarios were written first and run against unfixed code, which surfaced two genuine defects. The CI ran on GitHub-hosted runners and was iterated until the PR gate was green; the five demo PRs show which layer catches which change (§2.3). Anything not exercised (iOS 26.2 UI run, canary and previous-release jobs, real devices, most time targets) is labelled as such.
 
 **References:** Semantic Versioning 2.0 (semver.org) · Kotlin `binary-compatibility-validator` · Android *Testing strategies* (test pyramid, fidelity, cost of a bug) · Fowler, *The Practical Test Pyramid* · Satisfice HTSM (risk lens) · ISTQB risk-based testing practice.
