@@ -1,4 +1,4 @@
-name: 3-release-validation
+name: Release Validation
 
 # Stage 3: release candidate (tag rc-*). Re-runs the PR gate, the native UI matrix,
 # then backward-compat and consumer-canary checks (the last two are specified, not yet implemented).
@@ -7,14 +7,22 @@ on:
     tags: ["rc-*"]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
 jobs:
   gate:
+    name: PR gate
     uses: ./.github/workflows/pr.yml
 
   native-ui:
+    name: Native UI matrix
     uses: ./.github/workflows/ui-native.yml
 
   plan:
+    name: Build matrix from compat.yaml
     runs-on: ubuntu-latest
     outputs:
       contract_vs_release: ${{ steps.gen.outputs.contract_vs_release }}
@@ -30,6 +38,7 @@ jobs:
           done
 
   contract-vs-release:
+    name: "Backward compat vs ${{ matrix.release }} (stub)"
     needs: plan
     if: needs.plan.outputs.contract_vs_release != 'null'
     strategy:
@@ -41,6 +50,7 @@ jobs:
         run: echo "TODO check out tag v${{ matrix.release }} of the module and run contracts/ against it (specified, not yet implemented)"
 
   consumer-canary:
+    name: "Consumer canary ${{ matrix.app }} (stub)"
     needs: plan
     if: needs.plan.outputs.canary != 'null'
     strategy:
