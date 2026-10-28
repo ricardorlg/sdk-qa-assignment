@@ -34,7 +34,7 @@ class AuthClient(
     val isAuthenticated: Boolean get() = store.load() != null
     private val refreshLock = Any()
 
-    fun login(username: String, password: String) =
+    fun signIn(username: String, password: String) =
         requestToken(mapOf("grant_type" to "password", "username" to username, "password" to password), AuthError.InvalidCredentials)
 
     fun getAccessToken(): String {
