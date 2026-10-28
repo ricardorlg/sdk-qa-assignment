@@ -24,6 +24,7 @@ iface() { # normalise: drop compiler headers and the Xcode-version-specific modu
 case "${1:-check}" in
   dump)  build "$OUT"; mkdir -p "$(dirname "$BASELINE")"; iface "$OUT" > "$BASELINE"; echo "baseline updated: $BASELINE" ;;
   check) build "$OUT"
+         [ -n "${EMIT:-}" ] && iface "$OUT" > "$EMIT"   # CI uploads this so the baseline can be regenerated with the pinned toolchain
          if diff -u "$BASELINE" <(iface "$OUT"); then echo "iOS API unchanged"
          else echo "iOS public API changed: review, then run tools/ios_api.sh dump" >&2; exit 1; fi ;;
   breaking)

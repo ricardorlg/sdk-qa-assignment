@@ -37,7 +37,12 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - name: L2a signature contract (swiftinterface diff vs committed baseline)
-        run: tools/ios_api.sh check
+        run: EMIT=$RUNNER_TEMP/AuthSDK.swiftinterface tools/ios_api.sh check
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: ios-api-generated
+          path: ${{ runner.temp }}/AuthSDK.swiftinterface
       - name: L2a breaking-change classification (swift-api-digester vs last release tag)
         if: github.event_name == 'pull_request'
         run: |
