@@ -16,9 +16,9 @@ build() {
   (cd "$ROOT/ios" && xcodebuild build -scheme AuthSDK -derivedDataPath "$1" -sdk "$SDK" \
     -destination "generic/platform=iOS Simulator" BUILD_LIBRARY_FOR_DISTRIBUTION=YES -quiet >/dev/null)
 }
-iface() { # normalise: drop compiler-version header lines so diffs only show API
+iface() { # normalise: drop compiler headers and the Xcode-version-specific module separator (`Swift::X` vs `Swift.X`)
   grep -v '^// swift-\(compiler-version\|interface-format-version\|module-flags\)' \
-    "$1/Build/Products/Debug-iphonesimulator/AuthSDK.swiftmodule/arm64-apple-ios-simulator.swiftinterface"
+    "$1/Build/Products/Debug-iphonesimulator/AuthSDK.swiftmodule/arm64-apple-ios-simulator.swiftinterface" | sed 's/::/./g'
 }
 
 case "${1:-check}" in

@@ -8,8 +8,9 @@ sdk:
 
 platforms:
   ios:
-    os_versions: ["18.0", "26.0"]
-    min_os: "18.0"
+    # Runtimes available on GitHub-hosted macos-15 images; older ones would need a runtime install step.
+    os_versions: ["18.5", "26.2"]
+    min_os: "18.5"
   android:
     os_versions: [29, 34, 36]         # API levels
     min_os: 29
