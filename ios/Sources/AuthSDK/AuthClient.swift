@@ -41,6 +41,8 @@ public actor AuthClient {
 
     public var isAuthenticated: Bool { store.load() != nil }
 
+    public var hasSession: Bool { store.load() != nil }
+
     public func login(username: String, password: String) async throws {
         try await requestToken(["grant_type": "password", "username": username, "password": password], onUnauthorized: .invalidCredentials)
     }
