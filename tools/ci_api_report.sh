@@ -11,11 +11,12 @@ if [ "$RC" -ne 0 ]; then
   # keep unified-diff lines only (---/+++/@@/+/-/context), drop Gradle/Xcode noise
   DIFF="$(sed -n '/^[[:space:]]*---[[:space:]]/,/^$/p' "$LOG" | sed 's/^  //' | head -80)"
   if [ -n "$DIFF" ]; then
+    REPORT="${API_REPORT_FILE:-/dev/null}"
     {
       echo "### ❌ $TITLE"
       echo "Public API differs from the committed baseline. Review it; if intended, update the dump (\`apiDump\` / \`tools/ios_api.sh dump\`) in this PR."
       echo '```diff'; echo "$DIFF"; echo '```'
-    } >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+    } | tee "$REPORT" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
     echo "::error title=$TITLE::Public API changed (see job summary for the diff)"
   fi
 fi

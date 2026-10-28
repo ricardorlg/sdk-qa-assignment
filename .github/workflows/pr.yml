@@ -57,12 +57,28 @@ jobs:
         with: { distribution: temurin, java-version: 21 }
       - uses: gradle/actions/setup-gradle@v6
       - name: "L2a · public API signature (apiCheck)"
+        id: api
+        env: { API_REPORT_FILE: "${{ runner.temp }}/api-report.md" }
         run: tools/ci_api_report.sh "Android public API changed" gradle -p android apiCheck --console=plain
       - name: "L2b · behaviour contract (core + consumer scenarios)"
         if: ${{ !cancelled() }}
         run: |
           node fake-auth-server/server.js & sleep 1
           CONTRACT_DIR=$PWD/contracts gradle -p android test --console=plain
+      - name: "PR comment · Android API diff"
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && steps.api.outcome == 'failure' }}
+        continue-on-error: true
+        uses: marocchino/sticky-pull-request-comment@v3
+        with:
+          header: api-android
+          path: ${{ runner.temp }}/api-report.md
+      - name: "PR comment · clear Android API diff"
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && steps.api.outcome == 'success' }}
+        continue-on-error: true
+        uses: marocchino/sticky-pull-request-comment@v3
+        with:
+          header: api-android
+          delete: true
       - name: Test report
         if: ${{ !cancelled() }}
         uses: mikepenz/action-junit-report@v6
@@ -86,6 +102,8 @@ jobs:
       - name: Toolchain
         run: xcodebuild -version && swift --version
       - name: "L2a · public API signature (swiftinterface vs baseline)"
+        id: api
+        env: { API_REPORT_FILE: "${{ runner.temp }}/api-report.md" }
         run: EMIT=$RUNNER_TEMP/AuthSDK.swiftinterface tools/ci_api_report.sh "iOS public API changed" tools/ios_api.sh check
       - uses: actions/upload-artifact@v7
         if: failure()
@@ -107,6 +125,20 @@ jobs:
         run: |
           node fake-auth-server/server.js & sleep 1
           CONTRACT_DIR=$PWD/contracts swift test --package-path ios --xunit-output $RUNNER_TEMP/ios-results.xml
+      - name: "PR comment · iOS API diff"
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && steps.api.outcome == 'failure' }}
+        continue-on-error: true
+        uses: marocchino/sticky-pull-request-comment@v3
+        with:
+          header: api-ios
+          path: ${{ runner.temp }}/api-report.md
+      - name: "PR comment · clear iOS API diff"
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && steps.api.outcome == 'success' }}
+        continue-on-error: true
+        uses: marocchino/sticky-pull-request-comment@v3
+        with:
+          header: api-ios
+          delete: true
       - name: Test report
         if: ${{ !cancelled() }}
         uses: mikepenz/action-junit-report@v6
