@@ -86,6 +86,8 @@ jobs:
           report_paths: android/build/test-results/test/*.xml
           check_name: "Android contract results"
           detailed_summary: true
+          comment: true
+          updateComment: true
           include_passed: true
           require_tests: false
 
@@ -146,5 +148,7 @@ jobs:
           report_paths: ${{ runner.temp }}/ios-results*.xml
           check_name: "iOS contract results"
           detailed_summary: true
+          comment: true
+          updateComment: true
           include_passed: true
           require_tests: false
