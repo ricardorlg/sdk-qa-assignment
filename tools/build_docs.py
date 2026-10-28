@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build PDFs from the Markdown docs. Mermaid blocks are rendered to PNG first.
 
-Outputs docs/dist/FINAL_DELIVERABLE.pdf (document) and docs/dist/slides.pdf (Marp deck).
+Outputs deliverables/FINAL_DELIVERABLE.pdf (the deck is built by tools/build_pptx.js).
 Needs: node/npx, Google Chrome (CHROME env to override), python `markdown`.
 """
 import hashlib
@@ -15,6 +15,8 @@ import markdown
 
 DOCS = Path(__file__).resolve().parent.parent / "docs"
 DIST = DOCS / "dist"
+OUT = DOCS.parent / "deliverables"
+OUT.mkdir(exist_ok=True)
 IMG = DIST / "img"
 CHROME = os.environ.get("CHROME", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
 BLOCK = re.compile(r"```mermaid\n(.*?)```", re.S)
@@ -52,18 +54,7 @@ th{background:#f0f4ff}code{background:#f3f3f3;padding:0 2px}img{max-width:100%}"
 html = DIST / "FINAL_DELIVERABLE.html"
 html.write_text(f"<html><head><meta charset='utf-8'><style>{css}</style></head><body>{body}</body></html>")
 subprocess.run([CHROME, "--headless=new", "--no-sandbox", "--disable-gpu", "--no-pdf-header-footer",
-                f"--print-to-pdf={DIST / 'FINAL_DELIVERABLE.pdf'}", html.as_uri()], check=True, capture_output=True)
+                f"--print-to-pdf={OUT / 'FINAL_DELIVERABLE.pdf'}", html.as_uri()], check=True, capture_output=True)
 html.unlink()
 
-# Deck -> Marp PDF
-tmp = DIST / "slides_render.md"
-tmp.write_text(with_images((DOCS / "slides.md").read_text()))
-subprocess.run(["npx", "-y", "@marp-team/marp-cli", str(tmp), "--pdf", "--allow-local-files",
-                "-o", str(DIST / "slides.pdf")], check=True, capture_output=True,
-               env={**os.environ, "CHROME_PATH": CHROME})
-if os.environ.get("PREVIEW"):
-    subprocess.run(["npx", "-y", "@marp-team/marp-cli", str(tmp), "--images", "png", "--allow-local-files",
-                    "-o", str(DIST / "pv" / "slide.png")], check=True, capture_output=True,
-                   env={**os.environ, "CHROME_PATH": CHROME})
-tmp.unlink()
-print("built", DIST / "FINAL_DELIVERABLE.pdf", DIST / "slides.pdf")
+print("built", OUT / "FINAL_DELIVERABLE.pdf")

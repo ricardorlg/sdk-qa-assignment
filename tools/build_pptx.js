@@ -36,7 +36,7 @@ function bullets(items, size = 11, color = C.ink) {
   s.addText("Quality engineering for a multi-module mobile SDK", { x: 0.7, y: 1.5, w: 7.6, h: 1.5, fontFace: HEAD, fontSize: 38, bold: true, color: C.white, margin: 0 });
   s.addText("Contracts first. Fast feedback on every pull request. Slow tests only where nothing cheaper can catch the risk.", { x: 0.7, y: 3.15, w: 7, h: 0.8, fontFace: BODY, fontSize: 16, color: "CADCFC", margin: 0 });
   s.addText([
-    { text: "Ricardo Genoy", options: { bold: true, breakLine: true } },
+    { text: "Ricardo Larrahondo", options: { bold: true, breakLine: true } },
     { text: "Working code, demo PRs and CI: " + REPO.replace("https://", ""), options: { hyperlink: { url: REPO }, color: C.teal } },
   ], { x: 0.7, y: 4.5, w: 8, h: 0.6, fontFace: BODY, fontSize: 12, color: C.white, margin: 0 });
   s.addNotes("Opening: the deck follows the five assignment points. Everything marked Built exists in the repository and ran in GitHub Actions.");
@@ -272,5 +272,5 @@ function bullets(items, size = 11, color = C.ink) {
   s.addNotes("Order rationale: 1 gives the data that sizes 2 and 3; contracts are the cheapest, fastest signal, and the gates need something reliable to gate on. The order changes if the baseline shows a different top risk, for example a flaky pipeline blocking every release.");
 }
 
-const out = path.join(__dirname, "..", "docs", "dist", "SDK_QA_Strategy.pptx");
+const out = path.join(__dirname, "..", "deliverables", "SDK_QA_Strategy.pptx");
 pres.writeFile({ fileName: out }).then(() => console.log("wrote " + out));

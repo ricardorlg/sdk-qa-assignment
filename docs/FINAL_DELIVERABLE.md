@@ -1,7 +1,7 @@
 # Mobile SDK Quality Engineering – Proposal
 
 **Role:** Senior Mobile QA Engineer (Platform / SDK) · **Status:** DRAFT v0.3
-**Companion files:** [`risk-matrix.md`](risk-matrix.md) (full risk analysis) · [`slides.md`](slides.md) (short deck) · [`PROMPT_LIBRARY.md`](PROMPT_LIBRARY.md) (AI prompts) · [code repository](https://github.com/ricardorlg/sdk-qa-assignment)
+**Companion files:** [`risk-matrix.md`](risk-matrix.md) (full risk analysis) · [`PROMPT_LIBRARY.md`](PROMPT_LIBRARY.md) (AI prompts) · [code repository](https://github.com/ricardorlg/sdk-qa-assignment)
 
 ---
 
