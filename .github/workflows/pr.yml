@@ -57,7 +57,7 @@ jobs:
         with: { distribution: temurin, java-version: 21 }
       - uses: gradle/actions/setup-gradle@v6
       - name: "L2a · public API signature (apiCheck)"
-        run: gradle -p android apiCheck --console=plain
+        run: tools/ci_api_report.sh "Android public API changed" gradle -p android apiCheck --console=plain
       - name: "L2b · behaviour contract (core + consumer scenarios)"
         if: ${{ !cancelled() }}
         run: |
@@ -86,7 +86,7 @@ jobs:
       - name: Toolchain
         run: xcodebuild -version && swift --version
       - name: "L2a · public API signature (swiftinterface vs baseline)"
-        run: EMIT=$RUNNER_TEMP/AuthSDK.swiftinterface tools/ios_api.sh check
+        run: EMIT=$RUNNER_TEMP/AuthSDK.swiftinterface tools/ci_api_report.sh "iOS public API changed" tools/ios_api.sh check
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
