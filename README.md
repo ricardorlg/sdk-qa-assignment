@@ -69,15 +69,15 @@ The `AuthClient` classes are minimal stand-ins for an SDK module. The point is t
 ./run_all.sh
 ```
 
-It starts the fake server, runs the Swift runner (`swift test` in `ios/`) and the Kotlin runner (`gradle test` in `android/`), then stops the server. Adding a scenario means editing `contracts/auth/scenarios.json` only; both platforms pick it up.
+It starts the fake server, runs the Swift runner (`swift test` in `ios/`) and the Kotlin runner (`gradle test` in `android/`), then stops the server. Run `swift test` alone only if the fake server is already running. Adding a scenario means editing `contracts/auth/scenarios.json` only; both platforms pick it up.
 
 ### API signature checks
 
 ```bash
 cd android && gradle apiCheck                  # fails on an unreviewed public API change
 cd android && gradle apiDump                   # accept an intended change
-tools/ios_api.sh check                         # compare with the committed .swiftinterface
-tools/ios_api.sh breaking                      # swift-api-digester against the latest v* tag (needs git tags)
+tools/ios_api.sh check                         # compare with the committed .swiftinterface (baseline is generated on CI's Xcode; a different local Xcode may show harmless @available/ordering diffs)
+# 'breaking' needs a baseline build of the latest v* tag; it is run by CI (pr.yml), not locally
 ```
 
 ### Native UI and lifecycle tests (about 1 to 2 minutes, slower)
