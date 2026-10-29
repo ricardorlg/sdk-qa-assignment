@@ -80,7 +80,7 @@ public actor AuthClient {
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         switch status {
         case 200:
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+            guard let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
                   let access = json["access_token"] as? String,
                   let refresh = json["refresh_token"] as? String,
                   let ttl = json["expires_in"] as? Double else { throw AuthError.serverError }
