@@ -139,7 +139,7 @@ function bullets(items, size = 11, color = C.ink) {
     "Swapping Keychain for memory made the relaunch test fail, so it is sensitive.",
   ], 11.5, "E6EDF7"), { x: 6.5, y: 1.55, w: 2.85, h: 3.0, fontFace: BODY, margin: 0, valign: "top" });
   s.addText("Not coded, described as future work: module pairs, harness E2E on staging, consumer canary, real devices.", { x: 0.5, y: 4.78, w: 9, h: 0.4, fontFace: BODY, fontSize: 10, italic: true, color: C.mute, margin: 0 });
-  s.addNotes("Show scenarios.json, the two runners side by side, and the fake server. Each result was found by writing the scenario first and watching it fail.");
+  s.addNotes("Show scenarios.json, the two runners side by side, and the fake server. Each result was found by writing the scenario first and watching it fail. Key point: scenarios are data, not code, so neither platform owns the contract. That forces iOS/Android parity, lets app teams add expectations without Swift or Kotlin, and runs in milliseconds. Core scenarios are written by SDK QA; app teams own their folder; AI can draft, a human reviews the expected values.");
 }
 
 // 5 ── Demo PRs
