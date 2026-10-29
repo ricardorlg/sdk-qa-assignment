@@ -270,6 +270,10 @@ function bullets(items, size = 11, color = C.ink) {
     s.addText(h, { x, y: 3.3, w: 2.95, h: 0.3, fontFace: HEAD, fontSize: 13, bold: true, color: C.teal, margin: 0 });
     s.addText(bullets(items, 10, "E6EDF7"), { x, y: 3.65, w: 2.95, h: 1.55, fontFace: BODY, margin: 0, valign: "top" });
   });
+  s.addText([
+    { text: "Questions that change these priorities (document §5.1): ", options: { bold: true, color: C.amber } },
+    { text: "shared code between platforms? does the SDK ship UI? what was the last escaped defect?", options: { color: "E6EDF7" } },
+  ], { x: 0.5, y: 4.85, w: 8.5, h: 0.3, fontFace: BODY, fontSize: 10, margin: 0, valign: "middle" });
   s.addNotes("Order rationale: 1 gives the data that sizes 2 and 3; contracts are the cheapest, fastest signal, and the gates need something reliable to gate on. The order changes if the baseline shows a different top risk, for example a flaky pipeline blocking every release.");
 }
 

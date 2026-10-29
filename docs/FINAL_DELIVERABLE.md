@@ -483,31 +483,26 @@ Each experiment has a predicted outcome for each cause, so the result discrimina
 
 ### 5.1 Questions for the team before implementing
 
-These are the questions I would ask in the first weeks. The answers change the priorities above, so I treat them as inputs and not as formalities.
+These are the questions I would ask. Each one validates an assumption (A1 to A7, Introduction) or a risk score, and the last columns say what changes if the answer is different. **Week 1** marks the questions with the most impact on the strategy; the rest can wait for the first month.
 
-**Product and consumers**
-1. Which apps consume the SDK today and which one is the new app? What are its first release date and the modules it needs first?
-2. Does the SDK ship UI (login, consent screens) or is it headless? This decides how much L3b is needed.
-3. Which flows are the most business-critical for the apps (authentication, session restore, payments)? Which of them have had incidents before?
-
-**Releases and compatibility**
-4. How are releases cut today (cadence, tagging, who decides go/no-go)? Is there a version support policy, and how long do apps stay on old versions?
-5. Are modules versioned and released independently, or as one umbrella version? Who owns each module?
-6. What happens when an app is forced to upgrade, for example by a security fix? Is there a rollback path?
-
-**Existing testing and tooling**
-7. What automation exists today in the SDK and in the apps (frameworks, count, flake rate, run time)? Who maintains it?
-8. What CI do you use, and do you have macOS runners, emulator capacity or a device farm? What is the budget for them?
-9. Is there a staging backend with test accounts, and how stable is it?
-
-**Quality signals and risk**
-10. What data do you have from production (crash-free rate, auth error rates, analytics on devices and OS versions)? Can QA read it?
-11. What was the last release that went wrong, what escaped and why?
-12. What are your security and compliance constraints on token storage, logging and test data?
-
-**Ways of working**
-13. Who reviews API changes today, and would app teams accept owning consumer scenarios in the SDK repo?
-14. What is the expected QA role: platform owner of the quality gates, or embedded support for specific teams?
+| # | Question | Validates | If the answer is different | When |
+|---|---|---|---|---|
+| **Q1** | Which apps consume the SDK today and which one is the new app? What are its first release date and the modules it needs first? | A2 | Fewer apps: the canary becomes the main gate. More apps: contracts matter even more | First month |
+| **Q2** | Does the SDK ship UI (login, consent screens) or is it headless? | A5 | If headless, L3b shrinks to lifecycle only | **Week 1** |
+| **Q3** | Which flows are the most business-critical for the apps (authentication, session restore, payments)? Which of them have had incidents before? | Risk scores (§1) | Re-score the risk register and move test effort between layers | First month |
+| **Q4** | Is there shared code between platforms (KMP, a C++ or Rust core), or is each platform native? | A3 | If shared code exists, parity risk drops and L2b focuses on the bridge | **Week 1** |
+| **Q5** | How is the SDK distributed: source or binary (XCFramework, SPM, CocoaPods, AAR), static or dynamic linking? | §4 first hypothesis, L2a tooling | Static linking makes duplicate-dependency copies likely (§4); a binary release changes how the iOS API baseline is produced | First month |
+| **Q6** | How are releases cut today (cadence, tagging, who decides go/no-go)? Is there a version support policy, and how long do apps stay on old versions? | Release flow (§1.4) | Adapt the support window and the RC steps to the real process | First month |
+| **Q7** | Are modules versioned and released independently, or as one umbrella version? Who owns each module? | A1 | Add a release-train step to the compatibility policy (§1.4) | First month |
+| **Q8** | What happens when an app is forced to upgrade, for example by a security fix? Is there a rollback path? | R4, rollback triggers (§1.4) | Define the rollback and hotfix path before the first RC | First month |
+| **Q9** | What automation exists today in the SDK and in the apps (frameworks, count, flake rate, run time)? Who maintains it? | A4 | Priority 1 produces the real numbers and re-scores the risks | **Week 1** |
+| **Q10** | What CI do you use, and do you have macOS runners, emulator capacity or a device farm? What is the budget? | A6 | Real-device coverage is cut to a smaller, pre-agreed set | First month |
+| **Q11** | Is there a staging backend with test accounts, and how stable is it? | A7 | L4 uses the fake server only | First month |
+| **Q12** | What data do you have from production (crash-free rate, auth error rates, analytics on devices and OS versions)? Can QA read it? | KPIs (§1.6), device list (L6) | Without it, the device list and the rollback triggers use market data and assumptions | First month |
+| **Q13** | What was the last release that went wrong, what escaped and why? | Risk scores (§1) | The escape tells which layer was missing; it goes first in the priorities | **Week 1** |
+| **Q14** | What are your security and compliance constraints on token storage, logging and test data? | Security, future work (§2.4) | Security tests move up from future work | First month |
+| **Q15** | Who reviews API changes today, and would app teams accept owning consumer scenarios in the SDK repo? | Ownership (§1.5) | Without app-team ownership, consumer contracts are written by the SDK team and age faster | First month |
+| **Q16** | What is the expected QA role: platform owner of the quality gates, or embedded support for specific teams? | Ownership (§1.5) | Changes who owns the gates, the flake dashboard and the triage | First month |
 
 ---
 
