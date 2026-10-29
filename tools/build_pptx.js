@@ -115,12 +115,12 @@ function bullets(items, size = 11, color = C.ink) {
 {
   const s = base("Automation example: one contract, two native runners", "2 · Automation example", 4);
   const rows = [
-    ["D1", "Shared behaviour contracts", "10 scenarios per platform from one JSON, run against a scripted fake server. Includes single-flight concurrent refresh."],
+    ["D1", "Shared behaviour contracts", "11 scenarios per platform from one JSON, run against a scripted fake server. Includes single-flight concurrent refresh."],
     ["D2", "Consumer-driven contract", "Scenario owned by retail-app (token reuse). CODEOWNERS routes review to the app team."],
     ["D3", "API signature contract", "apiCheck dump (Android) and swiftinterface + digester vs v1.0.0 (iOS). Diff posted to summary and PR."],
     ["D4", "Native UI and lifecycle", "4 Espresso + 4 XCUITest tests: sign-in, error, background, kill and relaunch."],
     ["D5", "Compatibility manifest", "compat.yaml and gen_matrix.py produce the PR and RC matrices."],
-    ["D6", "Flaky handling", "Retry once; a pass on retry is reported FLAKY, never silently green."],
+    ["D6", "Flaky handling", "No retries in L2b (intermittent = bug). L3b and above: retry once, flag FLAKY, never silently green."],
   ];
   rows.forEach(([id, t, d], i) => {
     const y = 1.12 + i * 0.6;
@@ -155,7 +155,7 @@ function bullets(items, size = 11, color = C.ink) {
     [t("#3", { bold: true }), t("iOS"), t("new public hasSession"), res(0), res(1), t("Additive: review, not breaking")],
     [t("#4", { bold: true }), t("Android"), t("refresh lock removed"), res(1), res(0), t("Same bug class as #2")],
     [t("#5", { bold: true }), t("iOS"), t("init(service:) renamed"), res(0), res(1), t("swift-api-digester vs v1.0.0: breaking")],
-    [t("#6", { bold: true }), t("Android"), t("test fails once, passes on retry"), res(1), res(1), t("Green but flagged FLAKY: summary + PR comment")],
+    [t("#6", { bold: true }), t("Android"), t("test fails once, then passes"), res(1), res(0), t("Intermittent test blocks: no retries in L2b")],
   ];
   s.addTable(rows, { x: 0.5, y: 1.12, w: 9, colW: [0.5, 0.9, 2.3, 0.8, 0.8, 3.7], rowH: [0.32, 0.42, 0.46, 0.42, 0.42, 0.42, 0.42], border: { type: "solid", pt: 0.5, color: C.line }, fill: { color: C.white }, fontFace: BODY });
   card(s, 0.5, 4.2, 4.4, 1.0);
@@ -164,7 +164,7 @@ function bullets(items, size = 11, color = C.ink) {
   card(s, 5.1, 4.2, 4.4, 1.0);
   s.addText([{ text: "Feedback in 1.5 to 3 minutes. ", options: { bold: true, color: C.navy } }, { text: "Path-aware: only the platform that changed runs. Results appear as a JUnit check, a job summary and a sticky PR comment.", options: { color: C.mute } }],
     { x: 5.25, y: 4.22, w: 4.1, h: 0.96, fontFace: BODY, fontSize: 11, valign: "middle", margin: 0 });
-  s.addNotes("Open PR #2 live: signature check green, behaviour check red on iOS only. Then PR #5 for the digester message, and PR #6 for the flaky flag.");
+  s.addNotes("Open PR #2 live: signature check green, behaviour check red on iOS only. Then PR #5 for the digester message, and PR #6: an intermittent test blocks the gate because L2b has no retries.");
 }
 
 // 6 ── CI/CD pipeline

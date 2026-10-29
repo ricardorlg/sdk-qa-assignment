@@ -82,7 +82,7 @@ class AuthLifecycleTest {
         script(401 to """{"error":"invalid_grant"}""")
         launch()
         signInThroughUi("user", "bad")
-        onView(withId(R.id.auth_status)).check(matches(withText("Error: InvalidCredentials")))
+        onView(withId(R.id.auth_status)).check(matches(withText("Error: invalidCredentials")))
     }
 
     @Test

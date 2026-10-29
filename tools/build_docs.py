@@ -46,11 +46,24 @@ def with_images(text: str) -> str:
 
 
 # Document -> HTML -> PDF
-body = markdown.markdown(with_images((DOCS / "FINAL_DELIVERABLE.md").read_text()), extensions=["tables", "fenced_code"])
+def blank_before_lists(text: str) -> str:
+    """Python-Markdown needs a blank line before a list; GitHub does not."""
+    out, in_code = [], False
+    for line in text.split("\n"):
+        if line.startswith("```"):
+            in_code = not in_code
+        is_item = not in_code and re.match(r"(- |\d+\. )", line)
+        if is_item and out and out[-1].strip() and not re.match(r"(- |\d+\. |\s)", out[-1]) and not out[-1].startswith("|"):
+            out.append("")
+        out.append(line)
+    return "\n".join(out)
+
+
+body = markdown.markdown(with_images(blank_before_lists((DOCS / "FINAL_DELIVERABLE.md").read_text())), extensions=["tables", "fenced_code"])
 css = """body{font-family:-apple-system,Helvetica,Arial,sans-serif;font-size:10.5px;line-height:1.4;margin:0 }
 h1{font-size:20px;color:#0b5fff}h2{font-size:15px;border-bottom:1px solid #ccc;padding-bottom:2px;margin-top:16px}
 table{border-collapse:collapse;width:100%;font-size:9px;margin:6px 0}td,th{border:1px solid #bbb;padding:3px 5px;vertical-align:top}
-th{background:#f0f4ff}code{background:#f3f3f3;padding:0 2px}img{max-width:100%}"""
+th{background:#f0f4ff}code{background:#f3f3f3;padding:0 2px}img{max-width:100%;max-height:330px;display:block;margin:6px auto}"""
 html = DIST / "FINAL_DELIVERABLE.html"
 html.write_text(f"<html><head><meta charset='utf-8'><style>{css}</style></head><body>{body}</body></html>")
 subprocess.run([CHROME, "--headless=new", "--no-sandbox", "--disable-gpu", "--no-pdf-header-footer",

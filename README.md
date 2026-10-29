@@ -1,6 +1,6 @@
 # Mobile SDK Quality Engineering
 
-**Candidate assignment: Senior Mobile QA Engineer (Platform / SDK), ABN AMRO**
+**Candidate assignment: Senior Mobile QA Engineer (Platform / SDK)**
 Candidate: Ricardo Larrahondo
 
 This repository is the base of my answer to the assignment. It holds the written strategy and also a small working example: a dummy authentication SDK for iOS (Swift) and Android (Kotlin), tested with shared contracts, with a CI pipeline and demo pull requests that show the strategy at work.
@@ -42,7 +42,8 @@ Mapping to the five assignment points:
 | `android-instrumented/` | Android host app and Espresso tests (UI and lifecycle) |
 | `ios-host/` | iOS host app (generated with `xcodegen`) and XCUITest (UI and lifecycle) |
 | `compat.yaml`, `tools/gen_matrix.py` | Compatibility manifest and CI matrix generator |
-| `tools/retry_flag_flaky.sh` | Retry once and report a pass-on-retry as FLAKY |
+| `tools/retry_flag_flaky.sh` | Retry once and report a pass-on-retry as FLAKY (nightly UI jobs only; L2b has no retries) |
+| `tools/start_fake_server.sh` | Starts the fake server and waits until it is ready |
 | `tools/ci_api_report.sh` | Posts API diffs to the job summary and the PR |
 | `.github/workflows/` | `pr.yml`, `ui-native.yml`, `release.yml` |
 | `tools/build_docs.py`, `tools/build_pptx.js` | Rebuild the PDF and the PPTX |
@@ -132,7 +133,7 @@ Each PR changes one thing, to show which layer catches it. The PR Gate answers i
 | [#3](../../pull/3) | iOS | new public property `hasSession` | **fails** | passes |
 | [#4](../../pull/4) | Android | refresh lock removed | passes | **fails** |
 | [#5](../../pull/5) | iOS | `init(service:)` renamed | **fails** (digester: breaking) | passes |
-| [#6](../../pull/6) | Android | new test that fails once and passes on retry | passes | passes, **flagged FLAKY** (summary + PR comment) |
+| [#6](../../pull/6) | Android | new test that fails the first time and passes the second | passes | **fails** (no retries in L2b: an intermittent test is a bug) |
 
 The signature check and the behaviour contracts catch different problems, so both are needed.
 
