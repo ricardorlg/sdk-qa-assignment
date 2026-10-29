@@ -135,9 +135,10 @@ function bullets(items, size = 11, color = C.ink) {
   s.addText(bullets([
     "Concurrent refresh failed on both platforms (duplicate refreshes). Fixed with an in-flight task and a lock.",
     "Malformed body leaked a JSONException on Android only. Mapped to serverError.",
+    "Non-JSON 200 body escaped on iOS only; Kotlin already mapped it. Fixed in Swift: the iOS/Android inconsistency the brief warns about.",
     "Injected iOS-only bug (503 as session expiry) caught by a scenario.",
     "Swapping Keychain for memory made the relaunch test fail, so it is sensitive.",
-  ], 11.5, "E6EDF7"), { x: 6.5, y: 1.55, w: 2.85, h: 3.0, fontFace: BODY, margin: 0, valign: "top" });
+  ], 10.5, "E6EDF7"), { x: 6.5, y: 1.55, w: 2.85, h: 3.0, fontFace: BODY, margin: 0, valign: "top" });
   s.addText("Not coded, described as future work: module pairs, harness E2E on staging, consumer canary, real devices.", { x: 0.5, y: 4.78, w: 9, h: 0.4, fontFace: BODY, fontSize: 10, italic: true, color: C.mute, margin: 0 });
   s.addNotes("Show scenarios.json, the two runners side by side, and the fake server. Each result was found by writing the scenario first and watching it fail. Key point: scenarios are data, not code, so neither platform owns the contract. That forces iOS/Android parity, lets app teams add expectations without Swift or Kotlin, and runs in milliseconds. Core scenarios are written by SDK QA; app teams own their folder; AI can draft, a human reviews the expected values.");
 }
@@ -185,7 +186,7 @@ function bullets(items, size = 11, color = C.ink) {
   box(3.65, 1.12, 1.9, 0.5, "Android: apiCheck + L2b", "", C.blue);
   box(3.65, 1.72, 1.9, 0.5, "iOS: digester + L2b", "", C.blue);
   box(5.9, 1.35, 1.7, 0.75, "Reports", "JUnit check, API diff comment", C.blue);
-  box(7.9, 1.35, 1.6, 0.75, "Merge to main", "owner-routed failures", C.navy);
+  box(7.9, 1.35, 1.6, 0.75, "Merge to main", "owner-routed failures (planned)", C.white, C.mute, true);
   arrow(1.7, 1.72, 2.0, 1.72); arrow(3.3, 1.55, 3.65, 1.37); arrow(3.3, 1.9, 3.65, 1.97); arrow(5.55, 1.37, 5.9, 1.65); arrow(5.55, 1.97, 5.9, 1.8); arrow(7.6, 1.72, 7.9, 1.72);
   // nightly lane
   box(3.65, 2.9, 3.0, 0.65, "Native UI: Espresso + XCUITest", "OS matrix from compat.yaml, flaky report", C.green);
@@ -195,8 +196,8 @@ function bullets(items, size = 11, color = C.ink) {
   box(0.5, 3.95, 1.3, 0.7, "Tag rc-*", "", C.amber, C.navy);
   box(2.1, 3.95, 1.8, 0.7, "PR gate + native UI", "matrix from compat.yaml", C.amber, C.navy);
   box(4.2, 3.95, 1.9, 0.7, "Contracts vs N-1/N-2", "consumer canary (stubs)", C.white, C.mute, true);
-  box(6.4, 3.95, 1.3, 0.7, "Release gates", "", C.navy);
-  box(8.0, 3.95, 1.5, 0.7, "Publish + changelog", "", C.teal);
+  box(6.4, 3.95, 1.3, 0.7, "Release gates", "", C.white, C.mute, true);
+  box(8.0, 3.95, 1.5, 0.7, "Publish + changelog", "", C.white, C.mute, true);
   arrow(1.8, 4.3, 2.1, 4.3); arrow(3.9, 4.3, 4.2, 4.3); arrow(6.1, 4.3, 6.4, 4.3); arrow(7.7, 4.3, 8.0, 4.3);
   s.addText("Built and ran on GitHub: three workflow files (pr.yml, ui-native.yml, release.yml). Dashed = stub. UI tests are not a PR gate: 6 to 16 min per job.", { x: 0.5, y: 4.78, w: 8.6, h: 0.3, fontFace: BODY, fontSize: 9.5, italic: true, color: C.mute, margin: 0 });
   s.addText("Future: Slack alerts, device farm, flake dashboard, required checks.", { x: 0.5, y: 5.05, w: 8.6, h: 0.25, fontFace: BODY, fontSize: 9.5, italic: true, color: C.mute, margin: 0 });
