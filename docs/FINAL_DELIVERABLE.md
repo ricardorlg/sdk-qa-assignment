@@ -239,6 +239,14 @@ Metrics are used to re-score the risk register and to find where to invest, not 
 | D6 | **Flaky-test handling** | Reliability | Retry once and report a pass on retry as FLAKY (warning and job summary), never silently green. Used only in the nightly UI jobs (L3b). The PR Gate does **not** retry L2b; PR #6 shows an intermittent test blocking it (§3.4) | [`tools/retry_flag_flaky.sh`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/tools/retry_flag_flaky.sh) |
 | D7 | **Six demo pull requests** | CI | Each PR changes one thing, to show which layer catches it (§2.3) | [PRs #1 to #6](https://github.com/ricardorlg/sdk-qa-assignment/pulls) |
 
+Test architecture: the same scenarios drive both platforms against one fake server (D1, D2).
+
+![Contract test architecture](../deliverables/diagrams/3-test-architecture.png)
+
+The native UI tests (D4) drive the harness app against the fake server (L3b) or staging (L4, described):
+
+![Native UI architecture](../deliverables/diagrams/4-native-ui-architecture.png)
+
 How a scenario looks (abridged): it scripts the fake token endpoint, drives the client, and states expected results and final state. Expiry is driven by `expires_in` and slowness by `delayMs`, so there are no sleeps.
 
 ```json
@@ -309,15 +317,7 @@ L2a and L2b catch different things and both are needed: #2 and #4 are invisible 
 
 ![CI/CD pipeline](../deliverables/diagrams/2-ci-cd-pipeline.png)
 
-Test architecture: the same scenarios drive both platforms against one fake server, and the harness app is reused by the native UI tests.
-
-![Contract test architecture](../deliverables/diagrams/3-test-architecture.png)
-
-Native UI tests reuse the harness app and run against the fake server (L3b) or staging (L4):
-
-![Native UI architecture](../deliverables/diagrams/4-native-ui-architecture.png)
-
-Solid boxes are built and ran on GitHub; dashed grey boxes are planned or stubs. The diagrams are also available as standalone images in `deliverables/diagrams/`.
+Solid boxes are built and ran on GitHub; dashed grey boxes are planned or stubs. The test architecture diagrams are in §2.1; all diagrams are also available as standalone images in `deliverables/diagrams/`.
 
 ### 3.2 The three workflows
 
