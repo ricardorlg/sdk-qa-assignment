@@ -1,0 +1,24 @@
+flowchart LR
+  CORE[("scenarios.json<br/>10 core scenarios<br/>owner: SDK QA")]
+  CONS[("consumers/*<br/>app-team scenarios<br/>owner: app team")]
+  SW["Swift runner<br/>Swift Testing"]
+  KT["Kotlin runner<br/>JUnit 5"]
+  IA["iOS<br/>AuthClient"]
+  AA["Android<br/>AuthClient"]
+  FS["Fake auth server<br/>scripted responses<br/>records every request"]
+  CORE --> SW
+  CORE --> KT
+  CONS --> SW
+  CONS --> KT
+  SW --> IA
+  KT --> AA
+  IA -->|HTTP| FS
+  AA -->|HTTP| FS
+  classDef data fill:#fff4cc,stroke:#b58900,stroke-width:2px
+  classDef run fill:#d7eefc,stroke:#1565c0,stroke-width:2px
+  classDef sdk fill:#dff3e3,stroke:#2e7d32,stroke-width:2px
+  classDef infra fill:#eee,stroke:#666,stroke-width:2px
+  class CORE,CONS data
+  class SW,KT run
+  class IA,AA sdk
+  class FS infra
