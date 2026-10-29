@@ -28,12 +28,13 @@ Mapping to the five assignment points:
 | 3. CI/CD and release validation | Document §3 and `.github/workflows/` |
 | 4. Investigation scenario | Document §4 |
 | 5. Initial priorities | Document §5 |
+| Questions for the team | [Document §5.1](docs/FINAL_DELIVERABLE.md#51-questions-for-the-team-before-implementing) |
 
 ## 2. What is in the repository
 
 | Path | Purpose |
 |---|---|
-| `contracts/auth/scenarios.json` | Core behaviour contract: 9 scenarios shared by both platforms |
+| `contracts/auth/scenarios.json` | Core behaviour contract: 10 scenarios shared by both platforms |
 | `contracts/consumers/retail-app/` | Consumer-driven scenario owned by an app team (see `.github/CODEOWNERS`) |
 | `fake-auth-server/server.js` | Dependency-free Node fake token endpoint, scripted per scenario |
 | `ios/` | Swift package: reference `AuthClient` and a Swift Testing runner |

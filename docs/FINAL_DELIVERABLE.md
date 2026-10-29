@@ -231,7 +231,7 @@ Metrics are used to re-score the risk register and to find where to invest, not 
 
 | # | Demo | Layer | What it tests | Code |
 |---|---|---|---|---|
-| D1 | **Shared behaviour contracts** | L2b | 11 scenarios per platform (10 core in one JSON file plus 1 consumer scenario in `contracts/consumers/`), run by a Swift and a Kotlin runner against a scripted fake server. The scenarios are: login, invalid credentials, transparent refresh, rejected refresh ends the session, 503 during refresh keeps the session, timeout keeps the session, malformed body maps to `serverError`, **concurrent refresh is single-flight**, logout, and one consumer scenario | [`contracts/auth/scenarios.json`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/contracts/auth/scenarios.json) · [`fake-auth-server/server.js`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/fake-auth-server/server.js) · [iOS runner](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/ios/Tests/AuthContractTests/AuthContractTests.swift) · [Android runner](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/android/src/test/kotlin/sdk/auth/AuthContractTest.kt) |
+| D1 | **Shared behaviour contracts** | L2b | 11 scenarios per platform (10 core in one JSON file plus 1 consumer scenario in `contracts/consumers/`), run by a Swift and a Kotlin runner against a scripted fake server. The scenarios are: login, invalid credentials, transparent refresh, rejected refresh ends the session, 503 during refresh keeps the session, timeout keeps the session, malformed body maps to `serverError`, a 200 with a non-JSON body (captive portal) maps to `serverError`, **concurrent refresh is single-flight**, logout, and one consumer scenario | [`contracts/auth/scenarios.json`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/contracts/auth/scenarios.json) · [`fake-auth-server/server.js`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/fake-auth-server/server.js) · [iOS runner](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/ios/Tests/AuthContractTests/AuthContractTests.swift) · [Android runner](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/android/src/test/kotlin/sdk/auth/AuthContractTest.kt) |
 | D2 | **Consumer-driven contract** | L2b | A scenario owned by a consuming app (`retail-app`): a valid token is reused without a server call. `CODEOWNERS` assigns the folder to the app team | [`contracts/consumers/retail-app/auth.json`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/contracts/consumers/retail-app/auth.json) · [`.github/CODEOWNERS`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/.github/CODEOWNERS) |
 | D3 | **API signature contract** | L2a | Android: `apiCheck` against the committed `.api` dump. iOS: `.swiftinterface` diff plus `swift-api-digester` against tag `v1.0.0`. Failures are posted as a diff in the job summary and as a PR comment | [`android/api/auth-sdk-android.api`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/android/api/auth-sdk-android.api) · [`ios/api/AuthSDK.swiftinterface`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/ios/api/AuthSDK.swiftinterface) · [`tools/ios_api.sh`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/tools/ios_api.sh) · [`tools/ci_api_report.sh`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/tools/ci_api_report.sh) |
 | D4 | **Native UI and lifecycle** | L3b | 4 Espresso and 4 XCUITest tests in a host app. Both: sign-in and invalid credentials through the SDK login screen. Android also: activity recreation and a simulated cold start (a new store instance reads `SharedPreferences`; the process is not killed). iOS also: background and foreground, and terminate and relaunch with the session restored from the Keychain. The platform-specific lifecycle tests are not yet symmetric (see §2.4) | [Android](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/android-instrumented/app/src/androidTest/kotlin/sdk/auth/ui/AuthLifecycleTest.kt) · [iOS](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/ios-host/UITests/AuthLifecycleUITests.swift) |
@@ -480,6 +480,34 @@ Each experiment has a predicted outcome for each cause, so the result discrimina
 **Quick wins in parallel (low effort, visible):** retry-and-flag for flaky UI tests (L3b and above, never L2b), run metadata and artifacts uploaded on failure (used again in §4), a release-notes template with "who is affected".
 
 **Intentionally postponed:** broad E2E expansion, full device-farm coverage, performance/security suites beyond the SDK contract, a custom test framework, Pact with a broker. Revisit after the baseline.
+
+### 5.1 Questions for the team before implementing
+
+These are the questions I would ask in the first weeks. The answers change the priorities above, so I treat them as inputs and not as formalities.
+
+**Product and consumers**
+1. Which apps consume the SDK today and which one is the new app? What are its first release date and the modules it needs first?
+2. Does the SDK ship UI (login, consent screens) or is it headless? This decides how much L3b is needed.
+3. Which flows are the most business-critical for the apps (authentication, session restore, payments)? Which of them have had incidents before?
+
+**Releases and compatibility**
+4. How are releases cut today (cadence, tagging, who decides go/no-go)? Is there a version support policy, and how long do apps stay on old versions?
+5. Are modules versioned and released independently, or as one umbrella version? Who owns each module?
+6. What happens when an app is forced to upgrade, for example by a security fix? Is there a rollback path?
+
+**Existing testing and tooling**
+7. What automation exists today in the SDK and in the apps (frameworks, count, flake rate, run time)? Who maintains it?
+8. What CI do you use, and do you have macOS runners, emulator capacity or a device farm? What is the budget for them?
+9. Is there a staging backend with test accounts, and how stable is it?
+
+**Quality signals and risk**
+10. What data do you have from production (crash-free rate, auth error rates, analytics on devices and OS versions)? Can QA read it?
+11. What was the last release that went wrong, what escaped and why?
+12. What are your security and compliance constraints on token storage, logging and test data?
+
+**Ways of working**
+13. Who reviews API changes today, and would app teams accept owning consumer scenarios in the SDK repo?
+14. What is the expected QA role: platform owner of the quality gates, or embedded support for specific teams?
 
 ---
 
