@@ -13,7 +13,7 @@ Scoring: **Risk = Impact (1-5) × Probability (1-5)**. Zones: CRITICAL 15-25, HI
 | R4 | Module/dependency version combinations are incompatible | 4 | 4 | **16** | CRITICAL | `compat.yaml` → generated matrix, contracts vs N-1/N-2, consumer canary |
 | R5 | Concurrency / init-order defects at module boundaries (the 3.4→3.5 case) | 4 | 4 | **16** | CRITICAL | Parallel contract steps, TSan + repeat-N, pair integration tests |
 | R3 | Token lifecycle defects: lost session, double refresh, wrong expiry | 5 | 3 | **15** | CRITICAL | L2b auth scenarios, L3b lifecycle tests |
-| R8 | Slow or flaky tests erode trust and hide real failures | 3 | 5 | **15** | CRITICAL | Retry-once-and-flag, quarantine with owner and expiry, PR time budgets |
+| R8 | Slow or flaky tests erode trust and hide real failures | 3 | 5 | **15** | CRITICAL | No retries in L0-L3 (an intermittent failure blocks the PR); retry-once-and-flag only in nightly L3b and above; quarantine with owner and expiry; PR time budgets |
 | R7 | New OS release breaks SDK behaviour | 4 | 3 | 12 | HIGH | OS matrix (min/max on PR, full on RC), beta-OS exploratory charter |
 | R9 | Native UI / lifecycle regressions (rotation, background, relaunch) | 3 | 4 | 12 | HIGH | L3b Espresso / XCUITest in an SDK host app |
 | R10 | Backend errors or changes: timeout, 5xx, malformed body | 4 | 3 | 12 | HIGH | Contract scenarios with scripted fake server |
@@ -75,8 +75,8 @@ Scoring: **Risk = Impact (1-5) × Probability (1-5)**. Zones: CRITICAL 15-25, HI
 **R8 – Flaky and slow tests (15)**
 - *Trigger:* sleeps, shared state, real network/clock, oversized E2E suite.
 - *Blast radius:* teams ignore red builds; real regressions merge.
-- *Detection:* retry-once with explicit flag, flake-rate dashboard.
-- *Current mitigation:* `tools/retry_flag_flaky.sh` (pass-on-retry is reported, never silently green), path-filtered emulator jobs, no sleeps in tests.
+- *Detection:* L0-L3 run once with no retries, so a flaky test fails the PR and is treated as a bug; nightly L3b+ retries once and flags FLAKY; flake-rate dashboard.
+- *Current mitigation:* `tools/retry_flag_flaky.sh`, used only by the nightly UI jobs (pass-on-retry is reported as FLAKY, never silently green), path-filtered emulator jobs, no sleeps in tests.
 - *Gap:* quarantine automation, dashboard, and baseline data do not exist yet (Priority 1).
 
 ## 5. Reassessment
