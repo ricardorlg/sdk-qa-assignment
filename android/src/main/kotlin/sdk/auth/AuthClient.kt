@@ -20,7 +20,7 @@ interface SessionStore {
 }
 
 class InMemorySessionStore : SessionStore {
-    private var session: Session? = null
+    @Volatile private var session: Session? = null
     override fun load() = session
     override fun save(session: Session?) { this.session = session }
 }
