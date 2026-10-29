@@ -49,7 +49,7 @@ class LoginActivity : Activity() {
             val message = try {
                 client.login(user, pass); "Signed in"
             } catch (e: AuthException) {
-                "Error: ${e.error.name}"
+                "Error: ${e.error.name.replaceFirstChar { it.lowercase() }}"
             } catch (e: Exception) {
                 "Error: ${e.javaClass.simpleName}"
             }

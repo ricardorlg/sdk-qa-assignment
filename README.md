@@ -1,6 +1,6 @@
 # Mobile SDK Quality Engineering
 
-**Candidate assignment: Senior Mobile QA Engineer (Platform / SDK), ABN AMRO**
+**Candidate assignment: Senior Mobile QA Engineer (Platform / SDK)**
 Candidate: Ricardo Larrahondo
 
 This repository is the base of my answer to the assignment. It holds the written strategy and also a small working example: a dummy authentication SDK for iOS (Swift) and Android (Kotlin), tested with shared contracts, with a CI pipeline and demo pull requests that show the strategy at work.
@@ -42,7 +42,8 @@ Mapping to the five assignment points:
 | `android-instrumented/` | Android host app and Espresso tests (UI and lifecycle) |
 | `ios-host/` | iOS host app (generated with `xcodegen`) and XCUITest (UI and lifecycle) |
 | `compat.yaml`, `tools/gen_matrix.py` | Compatibility manifest and CI matrix generator |
-| `tools/retry_flag_flaky.sh` | Retry once and report a pass-on-retry as FLAKY |
+| `tools/retry_flag_flaky.sh` | Retry once and report a pass-on-retry as FLAKY (nightly UI jobs only; L2b has no retries) |
+| `tools/start_fake_server.sh` | Starts the fake server and waits until it is ready |
 | `tools/ci_api_report.sh` | Posts API diffs to the job summary and the PR |
 | `.github/workflows/` | `pr.yml`, `ui-native.yml`, `release.yml` |
 | `tools/build_docs.py`, `tools/build_pptx.js` | Rebuild the PDF and the PPTX |
@@ -119,7 +120,7 @@ To run it yourself:
 
 Pushes to `main` do not trigger workflows by design.
 
-**Access.** The repository is private. A reviewer needs read access to see the code and the Actions results. Access will be arranged separately with the recruiter; a public fork or an exported copy are alternatives.
+**Access.** The repository is public, so the code, the demo PRs and the Actions results can be viewed without permissions. To run the CI yourself, fork the repository and enable Actions on the fork.
 
 ### Demo pull requests
 
@@ -132,7 +133,7 @@ Each PR changes one thing, to show which layer catches it. The PR Gate answers i
 | [#3](../../pull/3) | iOS | new public property `hasSession` | **fails** | passes |
 | [#4](../../pull/4) | Android | refresh lock removed | passes | **fails** |
 | [#5](../../pull/5) | iOS | `init(service:)` renamed | **fails** (digester: breaking) | passes |
-| [#6](../../pull/6) | Android | new test that fails once and passes on retry | passes | passes, **flagged FLAKY** (summary + PR comment) |
+| [#6](../../pull/6) | Android | new test that fails the first time and passes the second | passes | **fails** (no retries in L2b: an intermittent test is a bug) |
 
 The signature check and the behaviour contracts catch different problems, so both are needed.
 
@@ -140,6 +141,6 @@ The signature check and the behaviour contracts catch different problems, so bot
 
 - **Not guaranteed to run everywhere.** Versions, simulator names and runner images change. The commands above worked on the author's machine (macOS, Swift 6.4, JDK 21, Gradle 9) and on GitHub-hosted `ubuntu-latest` and `macos-26`.
 - **Not built:** module-pair integration, harness E2E on staging, consumer canary, real-device tier and previous-release jobs. They are described in the document and listed as future work. The canary and previous-release jobs in `release.yml` are stubs.
-- **Open items:** the iOS 26.2 UI job failed once and was not diagnosed. Branch protection and required checks are not configured. `CODEOWNERS` uses placeholder team names. The Kotlin API validator is on 0.17.0 (0.18.x exists).
+- **Open items:** UI tests in hosted CI are out of scope for this exercise (the nightly iOS 26.2 UI job failed once and was not diagnosed; in practice these run on a device farm or dedicated runners). Branch protection and required checks are not configured. `CODEOWNERS` uses placeholder team names. The Kotlin API validator is on 0.17.0 (0.18.x exists).
 - **Dummy SDK.** The SDK code is a reference implementation for the exercise; it contains no confidential or proprietary code.
 - **AI-assisted.** Built with GitHub Copilot. Prompts and how each output was validated are in [`docs/PROMPT_LIBRARY.md`](docs/PROMPT_LIBRARY.md).
