@@ -41,7 +41,7 @@ class AuthClient(
         val session = store.load() ?: throw AuthException(AuthError.NotAuthenticated)
         if (session.expiresAtMillis > System.currentTimeMillis()) return session.accessToken
         // Single-flight: concurrent callers must not reuse the same refresh token.
-        synchronized(refreshLock) {
+        run {
             val current = store.load() ?: throw AuthException(AuthError.NotAuthenticated)
             if (current.expiresAtMillis > System.currentTimeMillis()) return current.accessToken
             requestToken(mapOf("grant_type" to "refresh_token", "refresh_token" to current.refreshToken), AuthError.SessionExpired)
