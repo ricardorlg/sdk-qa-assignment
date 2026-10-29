@@ -49,7 +49,7 @@ public actor AuthClient {
         guard let current = store.load() else { throw AuthError.notAuthenticated }
         if current.expiresAt > Date() { return current.accessToken }
         // Single-flight: actors are re-entrant at `await`, so concurrent callers must share one refresh.
-        let task = refreshTask ?? Task {
+        let task = Task {
             try await self.requestToken(["grant_type": "refresh_token", "refresh_token": current.refreshToken], onUnauthorized: .sessionExpired)
         }
         refreshTask = task
