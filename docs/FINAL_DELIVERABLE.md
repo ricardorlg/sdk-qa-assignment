@@ -69,7 +69,9 @@
 
 ### 1.1 The layers at a glance
 
-Layers run in this order of cost: **every PR** (L0, L1, L2a, L2b, L3) → **nightly** (L3b, L4) → **release candidate** (L5, L6, L7). The fake server and the shared scenarios feed L2b and L3b; the harness app is reused by L3b and L4.
+![Test layers](../deliverables/diagrams/1-test-layers.png)
+
+Layers run in order of cost. The fake server and the shared scenarios feed L2b and L3b; the harness app is reused by L3b and L4.
 
 
 | Layer | Question it answers | Runs | Owner | Status |
@@ -289,38 +291,17 @@ L2a and L2b catch different things and both are needed: #2 and #4 are invisible 
 
 ### 3.1 The pipeline
 
-```mermaid
-flowchart LR
-  PR[PR] --> P[Path<br/>filter]
-  P --> AND[Android<br/>L2a + L2b]
-  P --> IOS[iOS<br/>L2a + L2b]
-  AND --> M[Merge<br/>to main]
-  IOS --> M
-  M --> N[Nightly<br/>L3b UI]
-  N --> RC[Tag rc-*<br/>compat matrix]
-  RC --> K[Previous releases<br/>+ canary: planned]
-  K --> G{Release<br/>gates}
-  G --> R[Publish or<br/>owner report]
-  classDef planned stroke-dasharray: 4 3,fill:#f5f5f5,color:#666
-  class K planned
-```
+![CI/CD pipeline](../deliverables/diagrams/2-ci-cd-pipeline.png)
 
 Test architecture: the same scenarios drive both platforms against one fake server, and the harness app is reused by the native UI tests.
 
-```mermaid
-flowchart LR
-  SC[(scenarios.json<br/>core + consumer files)] --> SW[Swift runner]
-  SC --> KT[Kotlin runner]
-  SW --> FS[Fake auth server]
-  KT --> FS
-  SW --> IA[iOS AuthClient]
-  KT --> AA[Android AuthClient]
-  HA[Harness app] --> UI[L3b native UI tests]
-  FS --> UI
-  HA --> E2E[L4 E2E on staging]
-```
+![Contract test architecture](../deliverables/diagrams/3-test-architecture.png)
 
-Solid boxes are built and ran on GitHub; the dashed box is a stub.
+Native UI tests reuse the harness app and run against the fake server (L3b) or staging (L4):
+
+![Native UI architecture](../deliverables/diagrams/4-native-ui-architecture.png)
+
+Solid boxes are built and ran on GitHub; dashed grey boxes are planned or stubs. The diagrams are also available as standalone images in `deliverables/diagrams/`.
 
 ### 3.2 The three workflows
 
