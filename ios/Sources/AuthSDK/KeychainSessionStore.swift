@@ -6,7 +6,7 @@ public final class KeychainSessionStore: SessionStore, @unchecked Sendable {
     private let service: String
     private let account = "session"
 
-    public init(service: String = "sdk.auth.session") { self.service = service }
+    public init(keychainService: String) { self.service = keychainService }
 
     private var query: [String: Any] {
         [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account]
