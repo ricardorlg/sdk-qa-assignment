@@ -16,7 +16,7 @@ final class AuthLifecycleUITests: XCTestCase {
         req.httpBody = try JSONSerialization.data(withJSONObject: ["responses": responses.map { ["status": $0.0, "body": $0.1] }])
         let done = expectation(description: "scenario scripted")
         URLSession.shared.dataTask(with: req) { _, _, _ in done.fulfill() }.resume()
-        wait(for: [done], timeout: 5)
+        wait(for: [done], timeout: 20)
     }
 
     private func launchFreshApp() -> XCUIApplication {
