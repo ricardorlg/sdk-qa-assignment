@@ -7,7 +7,8 @@ import java.io.File
 /**
  * DEMO ONLY: simulates a timing-dependent test. It fails on the first run in a fresh
  * workspace and passes on the next, like a race that loses once in a while.
- * Expected CI result: job green, but flagged FLAKY (summary + PR comment).
+ * Expected CI result: L2b fails. The PR Gate does not retry deterministic layers, so an
+ * intermittent test blocks the merge and is treated as a bug (retries apply from L3b upwards).
  */
 class FlakyDemoTest {
     @Test
