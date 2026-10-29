@@ -146,7 +146,7 @@ GitHub runners: `ubuntu-latest` for Android and JVM jobs, `macos-26` for iOS (th
 > Verify each result in the check runs and report any case where the actual result differs from the prediction.
 
 **Lesson:** the first iOS demo did not fail L2a, which prompted the explanation that L2a catches signature changes only and L2b behaviour only. Demos 2 and 4 are invisible to L2a; demos 3 and 5 are invisible to L2b.
-**Not yet done:** a flaky-test demo PR; verifying the JUnit `comment: true` PR comment.
+**Done afterwards:** demo 6, a flaky-test PR (a test that fails on its first run and passes on retry); the PR Gate wraps L2b in `retry_flag_flaky.sh` and posts a sticky "flaky test detected" comment. Lesson: `hashFiles()` cannot see `runner.temp`, so detect the report in a step and use a step output. The JUnit `comment: true` PR comment was confirmed on that PR.
 
 ### P15. Investigation scenario (assignment point 4)
 **Prompt**

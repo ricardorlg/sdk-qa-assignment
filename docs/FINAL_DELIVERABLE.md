@@ -221,8 +221,8 @@ Metrics are used to re-score the risk register and to find where to invest, not 
 | D3 | **API signature contract** | L2a | Android: `apiCheck` against the committed `.api` dump. iOS: `.swiftinterface` diff plus `swift-api-digester` against tag `v1.0.0`. Failures are posted as a diff in the job summary and as a PR comment | [`android/api/auth-sdk-android.api`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/android/api/auth-sdk-android.api) · [`ios/api/AuthSDK.swiftinterface`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/ios/api/AuthSDK.swiftinterface) · [`tools/ios_api.sh`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/tools/ios_api.sh) · [`tools/ci_api_report.sh`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/tools/ci_api_report.sh) |
 | D4 | **Native UI and lifecycle** | L3b | 4 Espresso and 4 XCUITest tests in a host app: SDK login screen, rotation or recreation, background and foreground, kill and relaunch with the session restored from secure storage | [Android](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/android-instrumented/app/src/androidTest/kotlin/sdk/auth/ui/AuthLifecycleTest.kt) · [iOS](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/ios-host/UITests/AuthLifecycleUITests.swift) |
 | D5 | **Compatibility manifest** | Versions | `compat.yaml` and a generator that expands it into CI matrices (`pr` or `rc`) and validates consumer pins | [`compat.yaml`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/compat.yaml) · [`tools/gen_matrix.py`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/tools/gen_matrix.py) |
-| D6 | **Flaky-test handling** | Reliability | Retry once; a pass on retry is reported as FLAKY (warning and artifact), never silently green | [`tools/retry_flag_flaky.sh`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/tools/retry_flag_flaky.sh) |
-| D7 | **Five demo pull requests** | CI | Each PR changes one thing, to show which layer catches it (§2.3) | [PRs #1 to #5](https://github.com/ricardorlg/sdk-qa-assignment/pulls) |
+| D6 | **Flaky-test handling** | Reliability | Retry once; a pass on retry is reported as FLAKY (warning, job summary and a PR comment), never silently green. Wired into the PR Gate and the nightly UI jobs; shown by PR #6 | [`tools/retry_flag_flaky.sh`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/tools/retry_flag_flaky.sh) |
+| D7 | **Six demo pull requests** | CI | Each PR changes one thing, to show which layer catches it (§2.3) | [PRs #1 to #6](https://github.com/ricardorlg/sdk-qa-assignment/pulls) |
 
 How a scenario looks (abridged): it scripts the fake token endpoint, drives the client, and states expected results and final state. Expiry is driven by `expires_in` and slowness by `delayMs`, so there are no sleeps.
 
@@ -263,7 +263,9 @@ Each PR is a separate branch in the private repo. The PR Gate reports which laye
 | [#4](https://github.com/ricardorlg/sdk-qa-assignment/pull/4) | Android | refresh lock removed (internal) | passes | **fails** | Same bug class as #2, on Android |
 | [#5](https://github.com/ricardorlg/sdk-qa-assignment/pull/5) | iOS | `KeychainSessionStore.init(service:)` becomes `init(keychainService:)` | **fails** | passes | `swift-api-digester` vs `v1.0.0`: "init(service:) has been removed" (breaking) |
 
-L2a and L2b catch different things and both are needed: #2 and #4 are invisible to L2a, and #3 and #5 are invisible to L2b.
+| [#6](https://github.com/ricardorlg/sdk-qa-assignment/pull/6) | Android | adds a test that fails once and passes on retry (simulated race) | passes | passes, **flagged FLAKY** | Job stays green but is not a clean pass: warning, job summary and a sticky PR comment ask for investigation before any quarantine (§3.4) |
+
+L2a and L2b catch different things and both are needed: #2 and #4 are invisible to L2a, and #3 and #5 are invisible to L2b. #6 is neither: it shows how an unstable test is surfaced instead of hidden.
 
 ### 2.4 Not coded (future work)
 
@@ -334,7 +336,7 @@ Design choices:
 
 ### 3.4 Slow or unstable tests
 
-- `tools/retry_flag_flaky.sh`: retry once; a pass on retry is reported as FLAKY, never silently green.
+- `tools/retry_flag_flaky.sh`: retry once; a pass on retry is reported as FLAKY, never silently green. Built into the PR Gate and shown by [PR #6](https://github.com/ricardorlg/sdk-qa-assignment/pull/6): green job plus a PR comment. Caveat: the JUnit report only shows the passing attempt, which is why the flag is a separate signal.
 - Auto-quarantine after a flake-rate threshold: non-blocking, with an owner and a 2-week expiry (fix or delete). Before quarantining, check that the flake is not a real race (see §4).
 - Slow tests move down the pyramid or to nightly; each stage has a time budget.
 

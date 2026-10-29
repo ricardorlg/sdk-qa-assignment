@@ -16,7 +16,7 @@ This repository is the base of my answer to the assignment. It holds the written
 | **Risk analysis** | 15 risks (impact × probability), failure modes, coverage per risk | [`docs/risk-matrix.md`](docs/risk-matrix.md) |
 | **Test architecture and CI/CD diagrams** | Layer chain (§1.1) and pipeline (§3.1) | [`docs/FINAL_DELIVERABLE.md`](docs/FINAL_DELIVERABLE.md) |
 | **Code example** | Shared contract, two native runners, API checks, native UI tests | [§2 of the document](docs/FINAL_DELIVERABLE.md#2-automation-example) and this repo |
-| **Demo pull requests** | Five PRs, each showing which layer catches a change | [Pull requests](../../pulls) (see [section 4](#4-demo-pull-requests)) |
+| **Demo pull requests** | Six PRs, each showing which layer catches a change | [Pull requests](../../pulls) (see [section 4](#4-demo-pull-requests)) |
 | **AI usage** | Prompt library with how each output was validated | [`docs/PROMPT_LIBRARY.md`](docs/PROMPT_LIBRARY.md) |
 
 Mapping to the five assignment points:
@@ -132,6 +132,7 @@ Each PR changes one thing, to show which layer catches it. The PR Gate answers i
 | [#3](../../pull/3) | iOS | new public property `hasSession` | **fails** | passes |
 | [#4](../../pull/4) | Android | refresh lock removed | passes | **fails** |
 | [#5](../../pull/5) | iOS | `init(service:)` renamed | **fails** (digester: breaking) | passes |
+| [#6](../../pull/6) | Android | new test that fails once and passes on retry | passes | passes, **flagged FLAKY** (summary + PR comment) |
 
 The signature check and the behaviour contracts catch different problems, so both are needed.
 

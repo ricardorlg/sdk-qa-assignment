@@ -45,7 +45,7 @@ function bullets(items, size = 11, color = C.ink) {
 // 2 ── Introduction
 {
   const s = base("A dummy auth SDK, so the strategy is demonstrated", "Introduction · assumptions · risk", 2);
-  const stats = [["2", "native platforms\nSwift + Kotlin"], ["10", "shared scenarios\nper platform"], ["5", "demo pull requests\nwith known outcomes"], ["15", "risks scored\nimpact × probability"]];
+  const stats = [["2", "native platforms\nSwift + Kotlin"], ["10", "shared scenarios\nper platform"], ["6", "demo pull requests\nwith known outcomes"], ["15", "risks scored\nimpact × probability"]];
   stats.forEach(([n, l], i) => {
     const x = 0.5 + i * 2.28;
     card(s, x, 1.15, 2.1, 1.2);
@@ -144,7 +144,7 @@ function bullets(items, size = 11, color = C.ink) {
 
 // 5 ── Demo PRs
 {
-  const s = base("Five demo PRs: which layer catches what", "2 · Quick feedback in practice", 5);
+  const s = base("Six demo PRs: which layer catches what", "2 · Quick feedback in practice", 5);
   const hdr = (t, o = {}) => ({ text: t, options: { bold: true, color: C.white, fill: { color: C.navy }, fontSize: 10, align: o.align || "left", valign: "middle" } });
   const res = (ok) => ({ text: ok ? "passes" : "fails", options: { bold: true, color: ok ? C.green : C.red, align: "center", fontSize: 10, valign: "middle" } });
   const t = (x, o = {}) => ({ text: x, options: { fontSize: 9.5, color: C.ink, valign: "middle", ...o } });
@@ -155,15 +155,16 @@ function bullets(items, size = 11, color = C.ink) {
     [t("#3", { bold: true }), t("iOS"), t("new public hasSession"), res(0), res(1), t("Additive: review, not breaking")],
     [t("#4", { bold: true }), t("Android"), t("refresh lock removed"), res(1), res(0), t("Same bug class as #2")],
     [t("#5", { bold: true }), t("iOS"), t("init(service:) renamed"), res(0), res(1), t("swift-api-digester vs v1.0.0: breaking")],
+    [t("#6", { bold: true }), t("Android"), t("test fails once, passes on retry"), res(1), res(1), t("Green but flagged FLAKY: summary + PR comment")],
   ];
-  s.addTable(rows, { x: 0.5, y: 1.12, w: 9, colW: [0.5, 0.9, 2.3, 0.8, 0.8, 3.7], rowH: [0.34, 0.46, 0.5, 0.46, 0.46, 0.46], border: { type: "solid", pt: 0.5, color: C.line }, fill: { color: C.white }, fontFace: BODY });
-  card(s, 0.5, 4.05, 4.4, 1.1);
+  s.addTable(rows, { x: 0.5, y: 1.12, w: 9, colW: [0.5, 0.9, 2.3, 0.8, 0.8, 3.7], rowH: [0.32, 0.42, 0.46, 0.42, 0.42, 0.42, 0.42], border: { type: "solid", pt: 0.5, color: C.line }, fill: { color: C.white }, fontFace: BODY });
+  card(s, 0.5, 4.2, 4.4, 1.0);
   s.addText([{ text: "L2a and L2b are complementary. ", options: { bold: true, color: C.navy } }, { text: "#2 and #4 are invisible to the signature check; #3 and #5 are invisible to behaviour tests.", options: { color: C.mute } }],
-    { x: 0.65, y: 4.1, w: 4.1, h: 1.0, fontFace: BODY, fontSize: 11, valign: "middle", margin: 0 });
-  card(s, 5.1, 4.05, 4.4, 1.1);
+    { x: 0.65, y: 4.22, w: 4.1, h: 0.96, fontFace: BODY, fontSize: 11, valign: "middle", margin: 0 });
+  card(s, 5.1, 4.2, 4.4, 1.0);
   s.addText([{ text: "Feedback in 1.5 to 3 minutes. ", options: { bold: true, color: C.navy } }, { text: "Path-aware: only the platform that changed runs. Results appear as a JUnit check, a job summary and a sticky PR comment.", options: { color: C.mute } }],
-    { x: 5.25, y: 4.1, w: 4.1, h: 1.0, fontFace: BODY, fontSize: 11, valign: "middle", margin: 0 });
-  s.addNotes("Open PR #2 live: signature check green, behaviour check red on iOS only. Then PR #5 for the digester message.");
+    { x: 5.25, y: 4.22, w: 4.1, h: 0.96, fontFace: BODY, fontSize: 11, valign: "middle", margin: 0 });
+  s.addNotes("Open PR #2 live: signature check green, behaviour check red on iOS only. Then PR #5 for the digester message, and PR #6 for the flaky flag.");
 }
 
 // 6 ── CI/CD pipeline
