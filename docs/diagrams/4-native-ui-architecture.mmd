@@ -1,0 +1,13 @@
+flowchart LR
+  XI["XCUITest"] --> HI["iOS harness app<br/>(login screen +<br/>Keychain store)"]
+  XA["Espresso"] --> HA["Android harness app<br/>(login activity +<br/>SharedPreferences store)"]
+  HI --> SDKI["iOS AuthClient"]
+  HA --> SDKA["Android AuthClient"]
+  SDKI --> FS["Backend<br/><b>L3b</b>: fake auth server (built)<br/><b>L4</b>: staging backend (described)"]
+  SDKA --> FS
+  classDef run fill:#d7eefc,stroke:#1565c0,stroke-width:2px
+  classDef app fill:#dff3e3,stroke:#2e7d32,stroke-width:2px
+  classDef infra fill:#eee,stroke:#666,stroke-width:2px
+    class XI,XA run
+  class HI,HA,SDKI,SDKA app
+  class FS infra
