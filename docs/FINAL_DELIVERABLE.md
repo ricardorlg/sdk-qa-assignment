@@ -350,6 +350,7 @@ Design choices:
 | **Implement the stubs** | Contract-vs-previous-releases (run the old tagged scenarios against the new build) and consumer canary |
 | **Add L0, L1 and L3 jobs** | Lint, module unit tests and affected module pairs, selected from `compat.yaml` |
 | **Sharding, caching and test-impact analysis** | Keep the PR gate under budget as the suite grows; track CI minutes per PR |
+| **Per-test retries and flaky management** | Today the whole command is retried once. Move to per-test retries (Gradle `org.gradle.test-retry`, `xcodebuild -retry-tests-on-failure`) so the JUnit XML records the reruns and `flaky_summary: true` (already enabled) lists the exact flaky tests. Then add the retry cap, a flaky-test registry with owner and expiry, and automatic quarantine (§3.4) |
 | **Flake dashboard and metrics** | Trend of flake rate, time to signal and gate pass rate, fed from the JUnit results |
 | **Fix the iOS 26.2 UI job** and move the UI jobs to a PR gate for UI paths if duration allows | Currently unexplained failure |
 | **Dependency updates** | Dependabot or Renovate for actions and the Kotlin API validator, which has a newer release |
