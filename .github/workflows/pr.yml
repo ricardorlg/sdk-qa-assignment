@@ -104,6 +104,7 @@ jobs:
           comment: true
           updateComment: true
           include_passed: true
+          flaky_summary: true
           require_tests: false
 
   ios:
@@ -181,4 +182,5 @@ jobs:
           comment: true
           updateComment: true
           include_passed: true
+          flaky_summary: true
           require_tests: false
