@@ -200,7 +200,7 @@ function bullets(items, size = 11, color = C.ink) {
   arrow(1.8, 4.3, 2.1, 4.3); arrow(3.9, 4.3, 4.2, 4.3); arrow(6.1, 4.3, 6.4, 4.3); arrow(7.7, 4.3, 8.0, 4.3);
   s.addText("Built and ran on GitHub: three workflow files (pr.yml, ui-native.yml, release.yml). Dashed = stub. UI tests are not a PR gate: 6 to 16 min per job.", { x: 0.5, y: 4.78, w: 8.6, h: 0.3, fontFace: BODY, fontSize: 9.5, italic: true, color: C.mute, margin: 0 });
   s.addText("Future: Slack alerts, device farm, flake dashboard, required checks.", { x: 0.5, y: 5.05, w: 8.6, h: 0.25, fontFace: BODY, fontSize: 9.5, italic: true, color: C.mute, margin: 0 });
-  s.addNotes("macos-26 is the newest hosted label; macOS minutes are costly, which is another reason for path filtering. Actions are on latest majors. iOS 26.2 UI job failed once and was not diagnosed.");
+  s.addNotes("macos-26 is the newest hosted label; macOS minutes are costly, which is another reason for path filtering. Actions are on latest majors. iOS 26.2 UI job failed once and was not diagnosed; UI tests in hosted CI are out of scope (device farm or dedicated runners in practice).");
 }
 
 // 7 ── Investigation

@@ -119,7 +119,7 @@ To run it yourself:
 
 Pushes to `main` do not trigger workflows by design.
 
-**Access.** The repository is private. A reviewer needs read access to see the code and the Actions results. Access will be arranged separately with the recruiter; a public fork or an exported copy are alternatives.
+**Access.** The repository is public, so the code, the demo PRs and the Actions results can be viewed without permissions. To run the CI yourself, fork the repository and enable Actions on the fork.
 
 ### Demo pull requests
 
@@ -140,6 +140,6 @@ The signature check and the behaviour contracts catch different problems, so bot
 
 - **Not guaranteed to run everywhere.** Versions, simulator names and runner images change. The commands above worked on the author's machine (macOS, Swift 6.4, JDK 21, Gradle 9) and on GitHub-hosted `ubuntu-latest` and `macos-26`.
 - **Not built:** module-pair integration, harness E2E on staging, consumer canary, real-device tier and previous-release jobs. They are described in the document and listed as future work. The canary and previous-release jobs in `release.yml` are stubs.
-- **Open items:** the iOS 26.2 UI job failed once and was not diagnosed. Branch protection and required checks are not configured. `CODEOWNERS` uses placeholder team names. The Kotlin API validator is on 0.17.0 (0.18.x exists).
+- **Open items:** UI tests in hosted CI are out of scope for this exercise (the nightly iOS 26.2 UI job failed once and was not diagnosed; in practice these run on a device farm or dedicated runners). Branch protection and required checks are not configured. `CODEOWNERS` uses placeholder team names. The Kotlin API validator is on 0.17.0 (0.18.x exists).
 - **Dummy SDK.** The SDK code is a reference implementation for the exercise; it contains no confidential or proprietary code.
 - **AI-assisted.** Built with GitHub Copilot. Prompts and how each output was validated are in [`docs/PROMPT_LIBRARY.md`](docs/PROMPT_LIBRARY.md).

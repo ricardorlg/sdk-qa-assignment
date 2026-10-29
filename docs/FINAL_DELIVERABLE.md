@@ -258,11 +258,11 @@ How a scenario looks (abridged): it scripts the fake token endpoint, drives the 
 | Malformed response body (new scenario, run before fixing) | **Failed on Android only**: a `JSONException` escaped. Mapped to `serverError` |
 | Injected iOS-only bug (503 treated as session expiry) | Caught by `server_error_keeps_session` |
 | Keychain replaced by an in-memory store | The relaunch test fails, so the test is sensitive |
-| L3b native tests | Pass locally and on GitHub-hosted runners (Android API 29 and 36, iOS 18.5); iOS 26.2 failed once and was not investigated |
+| L3b native tests | Pass locally and on GitHub-hosted runners (Android API 29 and 36, iOS 18.5); UI tests in hosted CI are out of scope: the nightly iOS 26.2 job failed once and was not investigated |
 
 ### 2.3 Demo pull requests: quick feedback in practice
 
-Each PR is a separate branch in the private repo. The PR Gate reports which layer catches the change in about 1.5 to 3 minutes and runs only the platform whose paths changed.
+Each PR is a separate branch in the public repo. The PR Gate reports which layer catches the change in about 1.5 to 3 minutes and runs only the platform whose paths changed.
 
 | PR | Platform | What it breaks | L2a signature | L2b behaviour | Why |
 |---|---|---|---|---|---|
@@ -362,7 +362,7 @@ Design choices:
 | **Per-test retries and flaky management** | Today the whole command is retried once. Move to per-test retries (Gradle `org.gradle.test-retry`, `xcodebuild -retry-tests-on-failure`) so the JUnit XML records the reruns and `flaky_summary: true` (already enabled) lists the exact flaky tests. Then add the retry cap, a flaky-test registry with owner and expiry, and automatic quarantine (§3.4) |
 | **Scale the scenario contracts** | JSON Schema for scenarios, validated in CI; tags (smoke, regression) and per-scenario reports; a richer step vocabulary (controlled clock, backoff, network loss) implemented in both runners; one fake server and schema per SDK module; verify the fake server against the real backend (provider-verification style) so it cannot drift |
 | **Flake dashboard and metrics** | Trend of flake rate, time to signal and gate pass rate, fed from the JUnit results |
-| **Fix the iOS 26.2 UI job** and move the UI jobs to a PR gate for UI paths if duration allows | Currently unexplained failure |
+| **UI tests in CI: device farm or dedicated runners** | Out of scope here. The nightly iOS 26.2 UI job failed once on hosted runners and was not diagnosed. In practice the UI bundles run on a device farm or dedicated runners, and more work goes into how to run them reliably; then consider a PR gate for UI paths |
 | **Dependency updates** | Dependabot or Renovate for actions and the Kotlin API validator, which has a newer release |
 
 ---
