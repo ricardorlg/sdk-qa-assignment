@@ -66,8 +66,12 @@ jobs:
           node fake-auth-server/server.js & sleep 1
           CONTRACT_DIR=$PWD/contracts tools/retry_flag_flaky.sh gradle -p android test --console=plain
         env: { FLAKY_REPORT: "${{ runner.temp }}/flaky-report.md" }
+      - name: Detect flaky retries
+        id: flaky
+        if: ${{ !cancelled() }}
+        run: '[ -f "$RUNNER_TEMP/flaky-report.md" ] && echo "found=true" >> "$GITHUB_OUTPUT" || true'
       - name: "PR comment · Android flaky tests"
-        if: ${{ !cancelled() && github.event_name == 'pull_request' && hashFiles(format('{0}/flaky-report.md', runner.temp)) != '' }}
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && steps.flaky.outputs.found == 'true' }}
         continue-on-error: true
         uses: marocchino/sticky-pull-request-comment@v3
         with:
@@ -139,8 +143,12 @@ jobs:
           node fake-auth-server/server.js & sleep 1
           CONTRACT_DIR=$PWD/contracts tools/retry_flag_flaky.sh swift test --package-path ios --xunit-output $RUNNER_TEMP/ios-results.xml
         env: { FLAKY_REPORT: "${{ runner.temp }}/flaky-report.md" }
+      - name: Detect flaky retries
+        id: flaky
+        if: ${{ !cancelled() }}
+        run: '[ -f "$RUNNER_TEMP/flaky-report.md" ] && echo "found=true" >> "$GITHUB_OUTPUT" || true'
       - name: "PR comment · iOS flaky tests"
-        if: ${{ !cancelled() && github.event_name == 'pull_request' && hashFiles(format('{0}/flaky-report.md', runner.temp)) != '' }}
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && steps.flaky.outputs.found == 'true' }}
         continue-on-error: true
         uses: marocchino/sticky-pull-request-comment@v3
         with:
