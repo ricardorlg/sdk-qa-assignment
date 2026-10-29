@@ -64,7 +64,18 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node fake-auth-server/server.js & sleep 1
-          CONTRACT_DIR=$PWD/contracts gradle -p android test --console=plain
+          CONTRACT_DIR=$PWD/contracts tools/retry_flag_flaky.sh gradle -p android test --console=plain
+        env: { FLAKY_REPORT: "${{ runner.temp }}/flaky-report.md" }
+      - name: "PR comment · Android flaky tests"
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && hashFiles(format('{0}/flaky-report.md', runner.temp)) != '' }}
+        continue-on-error: true
+        uses: marocchino/sticky-pull-request-comment@v3
+        with:
+          header: flaky-android
+          message: |
+            ### ⚠️ Android: flaky test detected
+            A contract test failed once and passed on retry. The job is green, but this is **not** a clean pass. Investigate it as a possible real race before quarantining anything (see FINAL_DELIVERABLE §3.4 and §4).
+          append: false
       - name: "PR comment · Android API diff"
         if: ${{ !cancelled() && github.event_name == 'pull_request' && steps.api.outcome == 'failure' }}
         continue-on-error: true
@@ -126,7 +137,18 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node fake-auth-server/server.js & sleep 1
-          CONTRACT_DIR=$PWD/contracts swift test --package-path ios --xunit-output $RUNNER_TEMP/ios-results.xml
+          CONTRACT_DIR=$PWD/contracts tools/retry_flag_flaky.sh swift test --package-path ios --xunit-output $RUNNER_TEMP/ios-results.xml
+        env: { FLAKY_REPORT: "${{ runner.temp }}/flaky-report.md" }
+      - name: "PR comment · iOS flaky tests"
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && hashFiles(format('{0}/flaky-report.md', runner.temp)) != '' }}
+        continue-on-error: true
+        uses: marocchino/sticky-pull-request-comment@v3
+        with:
+          header: flaky-ios
+          message: |
+            ### ⚠️ iOS: flaky test detected
+            A contract test failed once and passed on retry. The job is green, but this is **not** a clean pass. Investigate it as a possible real race before quarantining anything (see FINAL_DELIVERABLE §3.4 and §4).
+          append: false
       - name: "PR comment · iOS API diff"
         if: ${{ !cancelled() && github.event_name == 'pull_request' && steps.api.outcome == 'failure' }}
         continue-on-error: true
