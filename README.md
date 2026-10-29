@@ -11,10 +11,10 @@ This repository is the base of my answer to the assignment. It holds the written
 
 | Deliverable | What it is | Link |
 |---|---|---|
-| **Main document** | Strategy, automation, CI/CD, investigation, priorities, future work, risks | [`docs/FINAL_DELIVERABLE.md`](docs/FINAL_DELIVERABLE.md) · [PDF](deliverables/FINAL_DELIVERABLE.pdf) |
-| **Presentation** | 8 slides, one section per assignment point | [`deliverables/SDK_QA_Strategy.pptx`](deliverables/SDK_QA_Strategy.pptx) |
+| **Main document (detailed deliverable)** | Strategy, automation, CI/CD, investigation, priorities, future work, risks. It is long because it holds the diagrams, the layer and risk tables and the step-by-step lists that back each answer | [`docs/FINAL_DELIVERABLE.md`](docs/FINAL_DELIVERABLE.md) · [PDF](deliverables/FINAL_DELIVERABLE.pdf) |
+| **Presentation (short version)** | 8 slides, one section per assignment point. Use it as the quick read; the document is the full answer | [`deliverables/SDK_QA_Strategy.pptx`](deliverables/SDK_QA_Strategy.pptx) |
 | **Risk analysis** | 15 risks (impact × probability), failure modes, coverage per risk | [`docs/risk-matrix.md`](docs/risk-matrix.md) |
-| **Test architecture and CI/CD diagrams** | Layer chain (§1.1) and pipeline (§3.1) | [`docs/FINAL_DELIVERABLE.md`](docs/FINAL_DELIVERABLE.md) |
+| **Test architecture and CI/CD diagrams** | Four standalone diagrams, exported as images (PNG, and SVG for zoom): [test layers](deliverables/diagrams/1-test-layers.png) · [CI/CD pipeline](deliverables/diagrams/2-ci-cd-pipeline.png) · [contract test architecture](deliverables/diagrams/3-test-architecture.png) · [native UI architecture](deliverables/diagrams/4-native-ui-architecture.png). Sources: [`docs/diagrams/`](docs/diagrams) (rebuild with `tools/build_diagrams.sh`) | [`deliverables/diagrams/`](deliverables/diagrams) |
 | **Code example** | Shared contract, two native runners, API checks, native UI tests | [§2 of the document](docs/FINAL_DELIVERABLE.md#2-automation-example) and this repo |
 | **Demo pull requests** | Six PRs, each showing which layer catches a change | [Pull requests](../../pulls) (see [section 4](#4-demo-pull-requests)) |
 | **AI usage** | Prompt library with how each output was validated | [`docs/PROMPT_LIBRARY.md`](docs/PROMPT_LIBRARY.md) |
@@ -124,18 +124,23 @@ Pushes to `main` do not trigger workflows by design.
 
 ### Demo pull requests
 
-Each PR changes one thing, to show which layer catches it. The PR Gate answers in about 1.5 to 3 minutes.
+Each PR makes **one** small change to the SDK, the way a real developer might, and the PR Gate shows which test layer catches it (about 1.5 to 3 minutes). Open the *Checks* tab of each PR to see the failing step.
 
-| PR | Platform | Change | L2a signature | L2b behaviour |
-|---|---|---|---|---|
-| [#1](../../pull/1) | Android | public `login` renamed to `signIn` | fails | fails |
-| [#2](../../pull/2) | iOS | single-flight refresh removed | passes | **fails** |
-| [#3](../../pull/3) | iOS | new public property `hasSession` | **fails** | passes |
-| [#4](../../pull/4) | Android | refresh lock removed | passes | **fails** |
-| [#5](../../pull/5) | iOS | `init(service:)` renamed | **fails** (digester: breaking) | passes |
-| [#6](../../pull/6) | Android | new test that fails the first time and passes the second | passes | **fails** (no retries in L2b: an intermittent test is a bug) |
+The two layers that run on every PR:
 
-The signature check and the behaviour contracts catch different problems, so both are needed.
+- **L2a, API signature:** did the *public interface* change (a name, a parameter, a new member)? Android uses `apiCheck`, iOS uses a `.swiftinterface` diff and `swift-api-digester`.
+- **L2b, behaviour contracts:** does the SDK still *behave* as promised? The same JSON scenarios run on both platforms against a fake server.
+
+| PR | What the developer changed | Why it matters | Expected result |
+|---|---|---|---|
+| [#1](../../pull/1) | Android: public `login` renamed to `signIn` | Every app calling `login` stops compiling | **L2a fails** (API dump differs). L2b also fails because the test code no longer compiles |
+| [#2](../../pull/2) | iOS: refresh no longer shares one in-flight request | Parallel calls each refresh the token; the server may revoke it and log the user out | L2a passes (same signature). **L2b fails** (concurrent refresh scenario) |
+| [#3](../../pull/3) | iOS: new public property `hasSession` | Additive and not breaking, but the public API changed and must be reviewed | **L2a fails** until the baseline is updated on purpose. L2b passes |
+| [#4](../../pull/4) | Android: lock around refresh removed | Same race as #2 on the other platform | L2a passes. **L2b fails** (concurrent refresh scenario) |
+| [#5](../../pull/5) | iOS: `KeychainSessionStore.init(service:)` renamed | Breaking change for apps that build the store themselves | **L2a fails** and the digester classifies it as breaking. L2b passes |
+| [#6](../../pull/6) | Android: a test that fails on its first run and passes on a re-run | Shows the policy for intermittent tests | **L2b fails**. L2b has no retries, so an intermittent test blocks the merge and is treated as a bug. Retry-once-and-flag applies only to environmental layers (L3b and above) |
+
+Reading the table: #1, #3 and #5 are *interface* changes (L2a). #2 and #4 are *behaviour* changes with an unchanged interface (L2b), which an API check cannot see. #6 is about test policy, not about the SDK code. Both layers are needed.
 
 ## 5. Known limits
 
@@ -143,4 +148,5 @@ The signature check and the behaviour contracts catch different problems, so bot
 - **Not built:** module-pair integration, harness E2E on staging, consumer canary, real-device tier and previous-release jobs. They are described in the document and listed as future work. The canary and previous-release jobs in `release.yml` are stubs.
 - **Open items:** UI tests in hosted CI are out of scope for this exercise (the nightly iOS 26.2 UI job failed once and was not diagnosed; in practice these run on a device farm or dedicated runners). Branch protection and required checks are not configured. `CODEOWNERS` uses placeholder team names. The Kotlin API validator is on 0.17.0 (0.18.x exists).
 - **Dummy SDK.** The SDK code is a reference implementation for the exercise; it contains no confidential or proprietary code.
-- **AI-assisted.** Built with GitHub Copilot. Prompts and how each output was validated are in [`docs/PROMPT_LIBRARY.md`](docs/PROMPT_LIBRARY.md).
+- **Public repository.** The brief was paraphrased and the company name removed from the files, but earlier commits in the history still contain them; this was accepted knowingly.
+- **AI-assisted.** Built with GitHub Copilot; one independent review was done with a second AI assistant. Prompts and how each output was validated are in [`docs/PROMPT_LIBRARY.md`](docs/PROMPT_LIBRARY.md).
