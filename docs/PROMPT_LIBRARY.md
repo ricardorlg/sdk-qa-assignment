@@ -182,7 +182,7 @@ GitHub runners: `ubuntu-latest` for Android and JVM jobs, `macos-26` for iOS (th
 
 - Every scenario and test was **executed**, locally and on GitHub-hosted runners.
 - Sensitivity was proven with **deliberate faults** (iOS-only 503 bug, public API change, Keychain replaced by memory, removed locks), each caught by the intended layer.
-- New scenarios were written **before** the fixes; they failed and exposed two real defects.
+- New scenarios were written **before** the fixes; they failed and exposed three real defects.
 - CI failures were diagnosed from **raw logs**, not guessed.
 - The six demo PRs compare *predicted* and *actual* results.
 - Gaps are labelled in the document: iOS 26.2 UI run, canary and previous-release jobs, real devices, JUnit PR comment, most time targets.

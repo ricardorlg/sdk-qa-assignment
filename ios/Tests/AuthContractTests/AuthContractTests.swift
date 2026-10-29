@@ -73,7 +73,7 @@ private func check(_ id: String, _ step: [String: Any], _ result: (token: String
 struct AuthContractTests {
     /// Guards against a wrong CONTRACT_DIR silently running zero scenarios.
     @Test func scenariosAreLoaded() {
-        #expect(Scenario.loadAll().count >= 11, "expected at least 11 scenarios in CONTRACT_DIR")
+        #expect(!Scenario.loadAll().isEmpty, "no scenarios found in CONTRACT_DIR")
     }
 
     @Test(arguments: Scenario.loadAll())

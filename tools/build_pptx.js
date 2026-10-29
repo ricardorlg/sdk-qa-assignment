@@ -45,7 +45,7 @@ function bullets(items, size = 11, color = C.ink) {
 // 2 ── Introduction
 {
   const s = base("A dummy auth SDK, so the strategy is demonstrated", "Introduction · assumptions · risk", 2);
-  const stats = [["2", "native platforms\nSwift + Kotlin"], ["10", "shared scenarios\nper platform"], ["6", "demo pull requests\nwith known outcomes"], ["15", "risks scored\nimpact × probability"]];
+  const stats = [["2", "native platforms\nSwift + Kotlin"], ["11", "shared scenarios\nper platform"], ["6", "demo pull requests\nwith known outcomes"], ["15", "risks scored\nimpact × probability"]];
   stats.forEach(([n, l], i) => {
     const x = 0.5 + i * 2.28;
     card(s, x, 1.15, 2.1, 1.2);
@@ -115,10 +115,10 @@ function bullets(items, size = 11, color = C.ink) {
 {
   const s = base("Automation example: one contract, two native runners", "2 · Automation example", 4);
   const rows = [
-    ["D1", "Shared behaviour contracts", "11 scenarios per platform from one JSON, run against a scripted fake server. Includes single-flight concurrent refresh."],
+    ["D1", "Shared behaviour contracts", "11 scenarios per platform (core JSON plus consumer-owned files), run against a scripted fake server. Includes single-flight concurrent refresh."],
     ["D2", "Consumer-driven contract", "Scenario owned by retail-app (token reuse). CODEOWNERS routes review to the app team."],
     ["D3", "API signature contract", "apiCheck dump (Android) and swiftinterface + digester vs v1.0.0 (iOS). Diff posted to summary and PR."],
-    ["D4", "Native UI and lifecycle", "4 Espresso + 4 XCUITest tests: sign-in, error, background, kill and relaunch."],
+    ["D4", "Native UI and lifecycle", "4 Espresso + 4 XCUITest tests. Both: sign-in and error. Android: recreation and simulated cold start. iOS: background, and terminate and relaunch (Keychain)."],
     ["D5", "Compatibility manifest", "compat.yaml and gen_matrix.py produce the PR and RC matrices."],
     ["D6", "Flaky handling", "No retries in L2b (intermittent = bug). L3b and above: retry once, flag FLAKY, never silently green."],
   ];
