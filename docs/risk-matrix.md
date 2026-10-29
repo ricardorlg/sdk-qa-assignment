@@ -6,7 +6,7 @@ Scoring: **Risk = Impact (1-5) × Probability (1-5)**. Zones: CRITICAL 15-25, HI
 
 ## 1. Register
 
-| ID | Risk (what can fail) | Impact | Prob. | Score | Zone | Primary controls (see strategy §3) |
+| ID | Risk (what can fail) | Impact | Prob. | Score | Zone | Primary controls (see FINAL_DELIVERABLE §3) |
 |---|---|---|---|---|---|---|
 | R1 | A change in public API or behaviour breaks consuming apps | 5 | 4 | **20** | CRITICAL | L2a signature contract, L2b consumer-driven contracts, SemVer gate |
 | R2 | iOS and Android behave differently for the same capability | 4 | 4 | **16** | CRITICAL | One scenario file, two native runners, parity gate |
@@ -36,7 +36,7 @@ Scoring: **Risk = Impact (1-5) × Probability (1-5)**. Zones: CRITICAL 15-25, HI
 
 ## 3. Coverage prescribed per zone
 
-| Zone | Unit (L1) | Contract (L2) | Integration (L3/L3b) | Consumer canary / E2E (L5) | Exploratory (L6) | Monitoring |
+| Zone | Unit (L1) | Contract (L2) | Integration (L3/L3b) | Consumer canary / E2E (L4–L5) | Exploratory (L7) | Monitoring |
 |---|---|---|---|---|---|---|
 | CRITICAL | Branch coverage, mutation score ratchet | Signature + behaviour, both platforms, blocking | All module pairs nightly, native UI on affected paths | Differential canary on every RC | Charter each release | Gate pass-rate, flake-rate dashboard |
 | HIGH | Happy path + key errors | Behaviour scenarios | Affected pairs on PR | Smoke only | On change | Weekly review |

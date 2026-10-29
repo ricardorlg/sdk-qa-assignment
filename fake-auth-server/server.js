@@ -1,5 +1,5 @@
 // Minimal fake OAuth-style token endpoint shared by the iOS and Android contract runners.
-// POST /__scenario  {responses:[{status,body}]}  -> resets state and queues scripted responses
+// POST /__scenario  {responses:[{status,body | rawBody}]} -> resets state and queues scripted responses (rawBody = non-JSON text)
 // POST /oauth/token (form-encoded)               -> returns next scripted response (optionally after delayMs), records request
 // GET  /__requests                               -> recorded token requests
 const http = require("http");
@@ -36,6 +36,10 @@ const server = http.createServer(async (req, res) => {
     if (!next) return send(res, 500, { error: "no scripted response left" });
     if (next.delayMs) await new Promise((r) => setTimeout(r, next.delayMs));
     if (res.destroyed) return;
+    if (next.rawBody !== undefined) {
+      res.writeHead(next.status, { "Content-Type": "text/html" });
+      return res.end(next.rawBody);
+    }
     return send(res, next.status, next.body);
   }
   send(res, 404, { error: "not found" });

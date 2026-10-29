@@ -8,7 +8,7 @@ sdk:
 
 platforms:
   ios:
-    # Runtimes available on GitHub-hosted macos-15 images; older ones would need a runtime install step.
+    # Runtimes available on GitHub-hosted macos-26 images; older ones would need a runtime install step.
     os_versions: ["18.5", "26.2"]
     min_os: "18.5"
   android:
