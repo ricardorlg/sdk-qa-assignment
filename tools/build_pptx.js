@@ -99,7 +99,7 @@ function bullets(items, size = 11, color = C.ink) {
 
   const cols = [
     ["Fast base: contracts", ["L2a: Android apiCheck, iOS swiftinterface + swift-api-digester.", "L2b: one JSON of scenarios run by a Swift and a Kotlin runner. Apps add their own via CODEOWNERS.", "Native tools only; no Appium below L5."]],
-    ["Device and life cycle", ["L3b: rotation, background, kill and relaunch, session restored from secure storage.", "L4: harness app against staging.", "L5: canary and upgrade tests in real apps, smoke by Appium."]],
+    ["Device and life cycle", ["L3b: UI tests on the harness app + fake server: rotation, background, kill and relaunch, session restore.", "L4: same harness app, real staging backend.", "L5: canary and upgrade tests in real apps, smoke by Appium."]],
     ["Humans and versions", ["L6: OEM, low memory, battery on a device farm.", "L7: charters on new capability and each RC.", "compat.yaml expands into PR and RC matrices; contracts run vs N-1 and N-2."]],
   ];
   cols.forEach(([h, items], i) => {
