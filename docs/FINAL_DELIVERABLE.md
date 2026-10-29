@@ -114,6 +114,15 @@ Time budgets are working assumptions (see Introduction). Native tooling is used 
 - **Policy:** a failing consumer scenario blocks the SDK PR; it is unblocked by the owning team's approval or a major bump with a migration note.
 - **Trade-off:** more friction on SDK PRs, in exchange for feedback in minutes and a smaller canary. Pact with a broker is the heavier option and is postponed (it is HTTP-centric and needs infrastructure).
 
+**Why scenarios are data (`scenarios.json`).** Two native implementations will drift unless something forces them to agree. A scenario is a plain JSON description of behaviour, so the contract is owned by neither platform:
+- **Anatomy of a scenario:** `tokenEndpointResponses` (what the scripted fake server returns, in order), `steps` (SDK actions: `login`, `getAccessToken`, `logout`, `parallel`, each with an `expect` such as a token or an error) and `final` (end state: authenticated or not, how many requests reached the server, the grant type and refresh token of the last one).
+- **How it runs:** the runner posts the scenario to the fake server (`/__scenario`), executes the steps against the real SDK client over HTTP, checks each `expect`, then reads the recorded requests (`/__requests`) to check `final`. The `final` check proves invisible effects, for example that ten parallel calls caused exactly one refresh.
+- **Why it matters:** it gives iOS/Android parity, it lets an app team express its expectations without writing Swift or Kotlin, it catches behaviour changes that keep the signature (demo PRs #2 and #4), and it runs in milliseconds because there is no UI and no real network.
+- **Who writes them:** the SDK QA engineer for core scenarios, and app teams for their own folder. Scenarios are reviewed like code, and every defect found at a higher layer or in production becomes a new scenario. AI agents can draft scenarios from a bug report, a spec or a diff; a human reviews the expected values, because a model that invents the expectation turns the contract into a test of its own guess.
+- **Where it sits:** L2b is a contract test at the integration level (real SDK code, scripted backend). It is not UI and not a harness-app test.
+- **Scope (what it does not unify):** the shared file covers only behaviour the SDK promises identically on both platforms (errors, refresh, single-flight, session state). It answers the challenge that behaviour is not always consistent between iOS and Android. Differences that are legitimate by design (process lifecycle, Keychain vs Keystore, background and battery rules, VoiceOver vs TalkBack) are tested natively in L3b, L6 and L7. Rule: unify what must be equal, test natively what differs.
+- **Limits:** the step vocabulary is small, the fake server is our model of the backend (L4 against staging checks it), and the JSON has no schema yet. See §3.5.
+
 **L3 Module integration pairs (Described).** Two or more real modules with real DI and a fake backend, on the JVM or macOS. Which pairs run on a PR comes from `compat.yaml` (the modules that depend on the changed one); all pairs run nightly, with Thread Sanitizer. This is where "A and B together" failures live (R4, R5), and it is the suite the investigation in §4 would extend.
 
 **L3b Native UI and device lifecycle (Built).** An SDK that ships screens or reacts to lifecycle cannot be trusted on logic tests alone. A minimal host app *inside the SDK repo* (the SDK test harness app, the same one L4 reuses) runs on an emulator or simulator and covers: SDK-rendered login UI, rotation and activity recreation, background and foreground, process kill and relaunch (session restored from secure storage), and storage on a real OS. It is not E2E: the backend is the fake server, only the SDK surface is driven, and there are a handful of deterministic tests per capability (idling resources, no sleeps). Visual regression and OEM quirks belong to L6 and L7.
@@ -221,8 +230,8 @@ Metrics are used to re-score the risk register and to find where to invest, not 
 | D3 | **API signature contract** | L2a | Android: `apiCheck` against the committed `.api` dump. iOS: `.swiftinterface` diff plus `swift-api-digester` against tag `v1.0.0`. Failures are posted as a diff in the job summary and as a PR comment | [`android/api/auth-sdk-android.api`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/android/api/auth-sdk-android.api) · [`ios/api/AuthSDK.swiftinterface`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/ios/api/AuthSDK.swiftinterface) · [`tools/ios_api.sh`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/tools/ios_api.sh) · [`tools/ci_api_report.sh`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/tools/ci_api_report.sh) |
 | D4 | **Native UI and lifecycle** | L3b | 4 Espresso and 4 XCUITest tests in a host app: SDK login screen, rotation or recreation, background and foreground, kill and relaunch with the session restored from secure storage | [Android](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/android-instrumented/app/src/androidTest/kotlin/sdk/auth/ui/AuthLifecycleTest.kt) · [iOS](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/ios-host/UITests/AuthLifecycleUITests.swift) |
 | D5 | **Compatibility manifest** | Versions | `compat.yaml` and a generator that expands it into CI matrices (`pr` or `rc`) and validates consumer pins | [`compat.yaml`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/compat.yaml) · [`tools/gen_matrix.py`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/tools/gen_matrix.py) |
-| D6 | **Flaky-test handling** | Reliability | Retry once; a pass on retry is reported as FLAKY (warning and artifact), never silently green | [`tools/retry_flag_flaky.sh`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/tools/retry_flag_flaky.sh) |
-| D7 | **Five demo pull requests** | CI | Each PR changes one thing, to show which layer catches it (§2.3) | [PRs #1 to #5](https://github.com/ricardorlg/sdk-qa-assignment/pulls) |
+| D6 | **Flaky-test handling** | Reliability | Retry once; a pass on retry is reported as FLAKY (warning, job summary and a PR comment), never silently green. Wired into the PR Gate and the nightly UI jobs; shown by PR #6 | [`tools/retry_flag_flaky.sh`](https://github.com/ricardorlg/sdk-qa-assignment/blob/main/tools/retry_flag_flaky.sh) |
+| D7 | **Six demo pull requests** | CI | Each PR changes one thing, to show which layer catches it (§2.3) | [PRs #1 to #6](https://github.com/ricardorlg/sdk-qa-assignment/pulls) |
 
 How a scenario looks (abridged): it scripts the fake token endpoint, drives the client, and states expected results and final state. Expiry is driven by `expires_in` and slowness by `delayMs`, so there are no sleeps.
 
@@ -263,7 +272,9 @@ Each PR is a separate branch in the private repo. The PR Gate reports which laye
 | [#4](https://github.com/ricardorlg/sdk-qa-assignment/pull/4) | Android | refresh lock removed (internal) | passes | **fails** | Same bug class as #2, on Android |
 | [#5](https://github.com/ricardorlg/sdk-qa-assignment/pull/5) | iOS | `KeychainSessionStore.init(service:)` becomes `init(keychainService:)` | **fails** | passes | `swift-api-digester` vs `v1.0.0`: "init(service:) has been removed" (breaking) |
 
-L2a and L2b catch different things and both are needed: #2 and #4 are invisible to L2a, and #3 and #5 are invisible to L2b.
+| [#6](https://github.com/ricardorlg/sdk-qa-assignment/pull/6) | Android | adds a test that fails once and passes on retry (simulated race) | passes | passes, **flagged FLAKY** | Job stays green but is not a clean pass: warning, job summary and a sticky PR comment ask for investigation before any quarantine (§3.4) |
+
+L2a and L2b catch different things and both are needed: #2 and #4 are invisible to L2a, and #3 and #5 are invisible to L2b. #6 is neither: it shows how an unstable test is surfaced instead of hidden.
 
 ### 2.4 Not coded (future work)
 
@@ -334,7 +345,7 @@ Design choices:
 
 ### 3.4 Slow or unstable tests
 
-- `tools/retry_flag_flaky.sh`: retry once; a pass on retry is reported as FLAKY, never silently green.
+- `tools/retry_flag_flaky.sh`: retry once; a pass on retry is reported as FLAKY, never silently green. Built into the PR Gate and shown by [PR #6](https://github.com/ricardorlg/sdk-qa-assignment/pull/6): green job plus a PR comment. Caveat: the JUnit report only shows the passing attempt, which is why the flag is a separate signal.
 - Auto-quarantine after a flake-rate threshold: non-blocking, with an owner and a 2-week expiry (fix or delete). Before quarantining, check that the flake is not a real race (see §4).
 - Slow tests move down the pyramid or to nightly; each stage has a time budget.
 
@@ -348,6 +359,8 @@ Design choices:
 | **Implement the stubs** | Contract-vs-previous-releases (run the old tagged scenarios against the new build) and consumer canary |
 | **Add L0, L1 and L3 jobs** | Lint, module unit tests and affected module pairs, selected from `compat.yaml` |
 | **Sharding, caching and test-impact analysis** | Keep the PR gate under budget as the suite grows; track CI minutes per PR |
+| **Per-test retries and flaky management** | Today the whole command is retried once. Move to per-test retries (Gradle `org.gradle.test-retry`, `xcodebuild -retry-tests-on-failure`) so the JUnit XML records the reruns and `flaky_summary: true` (already enabled) lists the exact flaky tests. Then add the retry cap, a flaky-test registry with owner and expiry, and automatic quarantine (§3.4) |
+| **Scale the scenario contracts** | JSON Schema for scenarios, validated in CI; tags (smoke, regression) and per-scenario reports; a richer step vocabulary (controlled clock, backoff, network loss) implemented in both runners; one fake server and schema per SDK module; verify the fake server against the real backend (provider-verification style) so it cannot drift |
 | **Flake dashboard and metrics** | Trend of flake rate, time to signal and gate pass rate, fed from the JUnit results |
 | **Fix the iOS 26.2 UI job** and move the UI jobs to a PR gate for UI paths if duration allows | Currently unexplained failure |
 | **Dependency updates** | Dependabot or Renovate for actions and the Kotlin API validator, which has a newer release |
