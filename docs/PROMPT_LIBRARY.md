@@ -29,7 +29,7 @@ Local machine used (versions matter for reproducing results):
 |---|---|
 | macOS + Xcode | Swift 6.4; `xcodegen` to generate the iOS host project |
 | JDK / Gradle | Java 21, Gradle 9.x (Kotlin 2.2.20, JUnit 5.11.3) |
-| Node | for the fake server (no dependencies) and Marp / mermaid-cli through `npx` |
+| Node | for the fake server (no dependencies) and mermaid-cli through `npx`, and `pptxgenjs` for the deck |
 | Python | a Python with `PyYAML`, `markdown`, `pypdf` (used by `tools/gen_matrix.py` and `tools/build_docs.py`) |
 | Chrome | headless, to render PDFs and Mermaid diagrams |
 | `gh` | create the repo, read CI logs, manage PRs |
@@ -72,7 +72,7 @@ GitHub runners: `ubuntu-latest` for Android and JVM jobs, `macos-26` for iOS (th
 > Create `contracts/auth/scenarios.json` (version, scenarios). Each scenario has `id`, `description`, `tokenEndpointResponses`, optional `config` (such as `timeoutMs`), `steps` (actions `login`, `getAccessToken`, `logout`, `parallel` with nested calls, each with `expect`) and a `final` block (authenticated, `tokenRequests`, last grant type, last refresh token). Write ten scenarios: login, invalid credentials, transparent refresh, rejected refresh ends the session, 503 during refresh keeps the session, timeout keeps the session, malformed body maps to `serverError`, concurrent refresh is single-flight, logout, plus one consumer scenario. Then implement the same minimal `AuthClient` in Swift (`ios/`, SwiftPM, Swift Testing runner) and Kotlin (`android/`, JUnit 5 runner), and one runner per platform that loads the same JSON. Error names are part of the contract: `invalidCredentials`, `sessionExpired`, `serverError`, `networkError`, `notAuthenticated`. `run_all.sh` starts the server, runs both runners and stops the server.
 
 **Important instruction:** write the *new* scenarios first and run them against the unfixed code. If they fail, that is a finding, not a mistake.
-**What happened:** concurrent refresh failed on **both** platforms (duplicate token refreshes); the malformed-body scenario failed on **Android only** (`JSONException` escaped). Fixes: Swift shares one in-flight `Task` (actors are re-entrant at `await`, so an actor alone is not enough); Kotlin uses `synchronized(refreshLock)`; Android maps parse errors to `serverError`.
+**What happened:** concurrent refresh failed on **both** platforms (duplicate token refreshes); the malformed-body scenario failed on **Android only** (`JSONException` escaped). Fixes: Swift shares one in-flight `Task` (actors are re-entrant at `await`, so an actor alone is not enough); Kotlin uses `synchronized(refreshLock)`; Android maps parse errors to `serverError`. A third scenario was added later after an independent AI review (a 200 response whose body is not JSON, such as a captive portal page): it failed on **iOS only** (Foundation's `JSONSerialization` error escaped instead of `serverError`) and was fixed in Swift, which closed a parity gap. The fake server supports a `rawBody` field for it.
 **Validated by:** `./run_all.sh` green on both; then injected an iOS-only bug (503 treated as session expiry) and confirmed `server_error_keeps_session` catches it.
 
 ### P6. Consumer-driven contract and CODEOWNERS
@@ -145,6 +145,7 @@ GitHub runners: `ubuntu-latest` for Android and JVM jobs, `macos-26` for iOS (th
 
 **Lesson:** the first iOS demo did not fail L2a, which prompted the explanation that L2a catches signature changes only and L2b behaviour only. Demos 2 and 4 are invisible to L2a; demos 3 and 5 are invisible to L2b.
 **Done afterwards:** demo 6, a flaky-test PR (a test that fails on its first run and passes on retry); first the PR Gate wrapped L2b in `retry_flag_flaky.sh`. An independent review pointed out that retrying the deterministic contract layer can hide a real race (R5), so the PR Gate now runs L2b with no retries and the retry-and-flag helper is used only in the nightly UI jobs (L3b). Demo 6 now shows an intermittent test turning the gate red. Lesson: retry policy belongs to the layer: no retries where tests are deterministic, retry once and flag where the environment is noisy.
+**Titles:** each PR title states the change and the test that catches it (`Demo N · <change> → caught by <test>`), so the list of PRs reads as a summary on its own. Demo 6 proves the *policy* (no retries, so it is always red), not intermittency itself.
 
 ### P15. Investigation scenario (assignment point 4)
 **Prompt**
@@ -158,7 +159,7 @@ GitHub runners: `ubuntu-latest` for Android and JVM jobs, `macos-26` for iOS (th
 
 ### P17. Documents, deck and PDFs
 **Prompt**
-> Write `docs/FINAL_DELIVERABLE.md` with sections: Introduction (what was built, assumptions, time assumptions, link to the risk analysis), 1 Test strategy, 2 Automation example (each demo with links; not-coded items as future work), 3 CI/CD (pipeline diagram, the three workflows, gates, future work), 4 Investigation, 5 Initial priorities, 6 Future improvements (UI design patterns, Robolectric, ViewModel tests, iOS equivalents), 7 Risks, trade-offs and AI usage. Keep a status legend (Built / Described) and never claim something was run if it was not. Write `docs/slides.md` (Marp, about 7 to 8 slides) and `tools/build_docs.py`, which renders Mermaid blocks to PNG with mermaid-cli and builds the PDFs with headless Chrome.
+> Write `docs/FINAL_DELIVERABLE.md` with sections: Introduction (what was built, assumptions, time assumptions, link to the risk analysis), 1 Test strategy, 2 Automation example (each demo with links; not-coded items as future work), 3 CI/CD (pipeline diagram, the three workflows, gates, future work), 4 Investigation, 5 Initial priorities, 6 Future improvements (UI design patterns, Robolectric, ViewModel tests, iOS equivalents), 7 Risks, trade-offs and AI usage. Keep a status legend (Built / Described) and never claim something was run if it was not. Write `tools/build_pptx.js` (pptxgenjs, 8 short slides: the short version of the document) and `tools/build_docs.py`, which renders Mermaid blocks to PNG with mermaid-cli and builds the PDF with headless Chrome. Keep the four diagrams as sources in `docs/diagrams/*.mmd` and add `tools/build_diagrams.sh`, which exports them as PNG and SVG to `deliverables/diagrams/` so the document and the README use the same images.
 
 **Validated by:** looking at the rendered diagrams and checking page and slide counts after every rebuild.
 **Gotchas:** `PREVIEW=1` exports slide PNGs to inspect overflow; remove them afterwards. Mermaid `direction` inside subgraphs is ignored in some cases; a single left-to-right chain with short labels rendered best.
@@ -166,6 +167,14 @@ GitHub runners: `ubuntu-latest` for Android and JVM jobs, `macos-26` for iOS (th
 ### P18. Review pass (use before submitting)
 **Prompt**
 > Act as the senior QA reviewer of this team. Read the document against the five challenges and the interview questions (why this architecture, iOS and Android support, compatibility, diagnosis and safe adoption of platform releases, what to do first and what to postpone). List what is missing, what is overclaimed, and any statement not backed by something that was run. Do not fix anything yet; rank findings by impact.
+
+### P19. Independent audit and polish
+**Prompt**
+> (Run in a different AI assistant, with the repository and the brief.) Audit the repository and the deliverables as a strict reviewer. Check that every claim in the document and the deck is backed by code or a CI run, that counts and names are consistent across the README, the document, the deck and the PRs, that confidentiality and AI disclosure are handled, and that the diagrams match what is built. Rank findings; do not fix.
+
+**What I did with it:** triaged each finding and decided myself. Accepted and fixed: strict no-retry L2b, the iOS non-JSON parity gap, inconsistent counts, deck rows that overclaimed, diagram styles that showed built and planned boxes the wrong way round, a release flow section, and clearer demo descriptions. Accepted knowingly without a fix: the public git history contains a company name that was later removed from the files. Declined: trimming the document, because the deck is the short version. Added as future work: SDK security tests, SDK observability, UI tests on a device farm.
+**Validated by:** re-running `./run_all.sh`, re-running the six demo PRs on the final `main` and comparing with the expected failing step of each.
+**Lesson:** a second AI reviewing the first one's work finds real defects, but it must be told what to check and its findings still need a human decision.
 
 ---
 
@@ -176,7 +185,7 @@ GitHub runners: `ubuntu-latest` for Android and JVM jobs, `macos-26` for iOS (th
 3. P7 to P10: API contracts, native UI tests, manifest, flaky retry.
 4. P11 to P13: CI, debug from logs, stage split, reports.
 5. P14: demo PRs.
-6. P15 to P18: investigation, priorities, documents, review.
+6. P15 to P19: investigation, priorities, documents, review, independent audit.
 
 ## 4. How the output was validated (summary)
 
