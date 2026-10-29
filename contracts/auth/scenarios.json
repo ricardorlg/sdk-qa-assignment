@@ -94,6 +94,17 @@
       "final": { "authenticated": true, "tokenRequests": 2, "lastRequestGrantType": "refresh_token", "lastRequestRefreshToken": "r1" }
     },
     {
+      "id": "non_json_200_is_server_error",
+      "description": "A 200 whose body is not JSON (captive portal, proxy page) maps to serverError on both platforms and must not create a session",
+      "tokenEndpointResponses": [
+        { "status": 200, "rawBody": "<html>login required</html>" }
+      ],
+      "steps": [
+        { "action": "login", "username": "user", "password": "secret", "expect": { "error": "serverError" } }
+      ],
+      "final": { "authenticated": false, "tokenRequests": 1 }
+    },
+    {
       "id": "malformed_token_response_is_server_error",
       "description": "A 200 response without required fields maps to serverError and must not crash or create a session",
       "tokenEndpointResponses": [

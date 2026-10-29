@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build PDFs from the Markdown docs. Mermaid blocks are rendered to PNG first.
 
-Outputs docs/dist/strategy.pdf (document) and docs/dist/slides.pdf (Marp deck).
+Outputs deliverables/FINAL_DELIVERABLE.pdf (the deck is built by tools/build_pptx.js).
 Needs: node/npx, Google Chrome (CHROME env to override), python `markdown`.
 """
 import hashlib
@@ -15,6 +15,8 @@ import markdown
 
 DOCS = Path(__file__).resolve().parent.parent / "docs"
 DIST = DOCS / "dist"
+OUT = DOCS.parent / "deliverables"
+OUT.mkdir(exist_ok=True)
 IMG = DIST / "img"
 CHROME = os.environ.get("CHROME", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
 BLOCK = re.compile(r"```mermaid\n(.*?)```", re.S)
@@ -44,26 +46,28 @@ def with_images(text: str) -> str:
 
 
 # Document -> HTML -> PDF
-body = markdown.markdown(with_images((DOCS / "strategy.md").read_text()), extensions=["tables", "fenced_code"])
+def blank_before_lists(text: str) -> str:
+    """Python-Markdown needs a blank line before a list; GitHub does not."""
+    out, in_code = [], False
+    for line in text.split("\n"):
+        if line.startswith("```"):
+            in_code = not in_code
+        is_item = not in_code and re.match(r"(- |\d+\. )", line)
+        if is_item and out and out[-1].strip() and not re.match(r"(- |\d+\. |\s)", out[-1]) and not out[-1].startswith("|"):
+            out.append("")
+        out.append(line)
+    return "\n".join(out)
+
+
+body = markdown.markdown(with_images(blank_before_lists((DOCS / "FINAL_DELIVERABLE.md").read_text())), extensions=["tables", "fenced_code"])
 css = """body{font-family:-apple-system,Helvetica,Arial,sans-serif;font-size:10.5px;line-height:1.4;margin:0 }
 h1{font-size:20px;color:#0b5fff}h2{font-size:15px;border-bottom:1px solid #ccc;padding-bottom:2px;margin-top:16px}
 table{border-collapse:collapse;width:100%;font-size:9px;margin:6px 0}td,th{border:1px solid #bbb;padding:3px 5px;vertical-align:top}
-th{background:#f0f4ff}code{background:#f3f3f3;padding:0 2px}img{max-width:100%}"""
-html = DIST / "strategy.html"
+th{background:#f0f4ff}code{background:#f3f3f3;padding:0 2px}img{max-width:100%;max-height:330px;display:block;margin:6px auto}"""
+html = DIST / "FINAL_DELIVERABLE.html"
 html.write_text(f"<html><head><meta charset='utf-8'><style>{css}</style></head><body>{body}</body></html>")
 subprocess.run([CHROME, "--headless=new", "--no-sandbox", "--disable-gpu", "--no-pdf-header-footer",
-                f"--print-to-pdf={DIST / 'strategy.pdf'}", html.as_uri()], check=True, capture_output=True)
+                f"--print-to-pdf={OUT / 'FINAL_DELIVERABLE.pdf'}", html.as_uri()], check=True, capture_output=True)
 html.unlink()
 
-# Deck -> Marp PDF
-tmp = DIST / "slides_render.md"
-tmp.write_text(with_images((DOCS / "slides.md").read_text()))
-subprocess.run(["npx", "-y", "@marp-team/marp-cli", str(tmp), "--pdf", "--allow-local-files",
-                "-o", str(DIST / "slides.pdf")], check=True, capture_output=True,
-               env={**os.environ, "CHROME_PATH": CHROME})
-if os.environ.get("PREVIEW"):
-    subprocess.run(["npx", "-y", "@marp-team/marp-cli", str(tmp), "--images", "png", "--allow-local-files",
-                    "-o", str(DIST / "pv" / "slide.png")], check=True, capture_output=True,
-                   env={**os.environ, "CHROME_PATH": CHROME})
-tmp.unlink()
-print("built", DIST / "strategy.pdf", DIST / "slides.pdf")
+print("built", OUT / "FINAL_DELIVERABLE.pdf")
