@@ -109,6 +109,8 @@ GitHub runners: `ubuntu-latest` for Android and JVM jobs, `macos-26` for iOS (th
 **Prompt**
 > Write `tools/retry_flag_flaky.sh <command...>`: run the command; on failure retry once; a pass on retry exits 0 but emits a CI `::warning::` and appends to `flaky-report.txt` (never silently green); two failures exit 1.
 
+**Scope:** used only by the nightly UI jobs (L3b and above). L0 to L3, including L2b, run once with no retries, so an intermittent failure blocks the PR. See P14.
+
 ### P11. First CI, then debug it from the logs
 **Prompt**
 > Create the GitHub repo (private at first, made public at the end) and a first CI. After it runs, fetch the failing job logs with `gh` (`gh api --allow-escape-sequences repos/<owner>/<repo>/actions/jobs/<id>/logs`, strip ANSI), diagnose each failure, fix it, push, and repeat until green. Report root cause, not symptoms.
@@ -172,7 +174,7 @@ GitHub runners: `ubuntu-latest` for Android and JVM jobs, `macos-26` for iOS (th
 **Prompt**
 > (Run in a different AI assistant, with the repository and the brief.) Audit the repository and the deliverables as a strict reviewer. Check that every claim in the document and the deck is backed by code or a CI run, that counts and names are consistent across the README, the document, the deck and the PRs, that confidentiality and AI disclosure are handled, and that the diagrams match what is built. Rank findings; do not fix.
 
-**What I did with it:** triaged each finding and decided myself. Accepted and fixed: strict no-retry L2b, the iOS non-JSON parity gap, inconsistent counts, deck rows that overclaimed, diagram styles that showed built and planned boxes the wrong way round, a release flow section, and clearer demo descriptions. Accepted knowingly without a fix: the public git history contains a company name that was later removed from the files. Declined: trimming the document, because the deck is the short version. Added as future work: SDK security tests, SDK observability, UI tests on a device farm.
+**What I did with it:** triaged each finding and decided myself. Accepted and fixed: strict no-retry L2b, the iOS non-JSON parity gap, inconsistent counts, deck rows that overclaimed, diagram styles that showed built and planned boxes the wrong way round, a release flow section, clearer demo descriptions, the questions for the team as a table linked to the assumptions A1 to A7 (with two new questions: shared code and SDK distribution), and the retry policy in `risk-matrix.md`. Accepted knowingly without a fix: the public git history contains a company name that was later removed from the files. Declined: trimming the document, because the deck is the short version; and a backend/OpenAPI question, because the SDK is a dummy. Added as future work: SDK security tests, SDK observability, UI tests on a device farm.
 **Validated by:** re-running `./run_all.sh`, re-running the six demo PRs on the final `main` and comparing with the expected failing step of each.
 **Lesson:** a second AI reviewing the first one's work finds real defects, but it must be told what to check and its findings still need a human decision.
 
