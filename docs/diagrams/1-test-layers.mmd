@@ -1,0 +1,20 @@
+flowchart TB
+  subgraph PR["EVERY PULL REQUEST · blocking · minutes"]
+    direction LR
+    L0["L0<br/>Static checks<br/><i>described</i>"] --> L1["L1<br/>Module unit tests<br/><i>described</i>"] --> L2a["L2a<br/>API signature contract<br/><b>built</b>"] --> L2b["L2b<br/>Behaviour contracts<br/><b>built</b>"] --> L3["L3<br/>Module pairs<br/><i>described</i>"]
+  end
+  subgraph NI["NIGHTLY · triaged next morning"]
+    direction LR
+    L3b["L3b<br/>Native UI + lifecycle<br/>Espresso, XCUITest<br/><b>built</b>"] --> L4["L4<br/>Harness app E2E on staging<br/><i>described</i>"]
+  end
+  subgraph RC["RELEASE CANDIDATE · tag rc-*"]
+    direction LR
+    L5["L5<br/>Consuming apps<br/><i>described</i>"] --> L6["L6<br/>Real devices<br/><i>described</i>"] --> L7["L7<br/>Manual + exploratory<br/><i>described</i>"]
+  end
+  PR ==> NI ==> RC
+  classDef pr fill:#d7eefc,stroke:#1565c0,stroke-width:2px,color:#0b2a4a
+  classDef nightly fill:#dff3e3,stroke:#2e7d32,stroke-width:2px,color:#123d17
+  classDef rc fill:#ffe9cf,stroke:#ef6c00,stroke-width:2px,color:#4a2600
+  class L0,L1,L2a,L2b,L3 pr
+  class L3b,L4 nightly
+  class L5,L6,L7 rc

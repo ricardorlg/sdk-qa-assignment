@@ -1,0 +1,29 @@
+flowchart TB
+  subgraph S1["1 · ON EVERY PULL REQUEST (pr.yml) · blocking"]
+    direction LR
+    DEV["Pull request<br/>opened"] --> PF["Path filter<br/>decides which<br/>platform runs"]
+    PF --> A["Android job<br/>L2a apiCheck<br/>L2b contracts"]
+    PF --> I["iOS job<br/>L2a digester<br/>L2b contracts"]
+    A --> REP["Report<br/>JUnit check<br/>API diff comment"]
+    I --> REP
+    REP --> MRG["Merge<br/>to main"]
+  end
+  subgraph S2["2 · NIGHTLY (ui-native.yml)"]
+    direction LR
+    NIGHT["L3b native UI tests<br/>Espresso + XCUITest<br/>OS matrix from compat.yaml<br/>retry once, flag FLAKY"]
+  end
+  subgraph S3["3 · RELEASE CANDIDATE (release.yml, tag rc-*)"]
+    direction LR
+    TAG["PR gate +<br/>native UI matrix"] --> PREV["Contracts vs N-1 / N-2<br/>+ consumer canary<br/><i>planned (stubs)</i>"] --> GATE{"Release<br/>gates"}
+    GATE -->|pass| PUB["Publish +<br/>changelog"]
+    GATE -->|fail| OWN["Report routed to owner<br/>with cause category"]
+  end
+  S1 ==> S2 ==> S3
+  classDef built fill:#d7eefc,stroke:#1565c0,stroke-width:2px,color:#0b2a4a
+  classDef nightly fill:#dff3e3,stroke:#2e7d32,stroke-width:2px,color:#123d17
+  classDef planned fill:#f2f2f2,stroke:#888,stroke-width:2px,stroke-dasharray:5 4,color:#444
+  classDef bad fill:#fde2e2,stroke:#c62828,stroke-width:2px,color:#5a0f0f
+  class DEV,PF,A,I,REP,MRG built
+  class NIGHT nightly
+  class TAG,PREV,PUB planned
+  class OWN bad
