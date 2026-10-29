@@ -174,6 +174,20 @@ The new app is the best early signal: it exercises the newest modules and combin
 - **Published matrix and changelog:** each release states what changed, which consumer scenarios were touched, supported combinations, and whether storage formats changed (safe to roll back or not).
 - **Hotfix:** a patch can be cut from the last tag; the previous umbrella version stays downloadable.
 
+**Release flow (Described; the `rc-*` trigger and the gates it calls are Built, the rest is process).**
+
+| Step | What happens | Owner |
+|---|---|---|
+| 1. Freeze | Only fixes go into the release branch; the changelog is drafted from merged PRs | Platform team |
+| 2. Cut the RC | The release manager tags `rc-X.Y.Z`; the tag starts `release.yml` | Release manager |
+| 3. Gates | Full L2 gate, native UI matrix, contracts vs N-1/N-2 and consumer canary (the last two are stubs today), then L5 upgrade test, L6 real devices and L7 checklist | QA runs and reports; app teams triage their own failures |
+| 4. Go/no-go | The release manager decides with the gate report and the risk summary (§1.6 release criteria) | Release manager |
+| 5. Publish | Tag `vX.Y.Z` on the same commit as the approved RC (no rebuild), changelog and compatibility matrix published, and the note says whether storage formats changed | Platform team |
+| 6. Staged rollout | Apps adopt the new version one at a time, starting with the lowest-risk app | App teams |
+| 7. Observe | Watch the first days against rollback triggers; if one fires, apps pin the previous umbrella version and a hotfix is cut from the last tag | Platform team, QA |
+
+Example rollback triggers (working assumptions to be agreed with the app teams, not measured values): crash-free sessions drop by more than 0.5 points against the previous version, the auth error rate doubles, or any P1 appears. Automating the RC cut and promotion, and real post-release monitoring, are future work (§3.5 and the SDK observability item in §2.4).
+
 ### 1.5 Ownership and communication
 
 Most integration failures are coordination failures first. The pipeline makes them visible; these agreements prevent them.
