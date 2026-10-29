@@ -8,7 +8,7 @@ export CONTRACT_SERVER_URL="http://127.0.0.1:$PORT"
 
 node "$ROOT/fake-auth-server/server.js" & SERVER_PID=$!
 trap 'kill $SERVER_PID' EXIT
-sleep 1
+until curl -fs "$CONTRACT_SERVER_URL/__requests" >/dev/null 2>&1; do sleep 0.2; done
 
 echo "== iOS (Swift / Swift Testing) =="; (cd "$ROOT/ios" && swift test)
 echo "== Android (Kotlin / JUnit5) =="; (cd "$ROOT/android" && gradle test --console=plain)

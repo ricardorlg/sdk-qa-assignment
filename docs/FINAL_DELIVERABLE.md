@@ -243,10 +243,10 @@ How a scenario looks (abridged): it scripts the fake token endpoint, drives the 
 
 | Check | Result |
 |---|---|
-| 11 contract scenarios (10 core + 1 consumer), iOS and Android | Pass on both. A minimum-scenario check in each runner fails the job if `CONTRACT_DIR` is wrong and zero scenarios would run |
+| 11 contract scenarios (10 core + 1 consumer), iOS and Android | Pass on both. A non-empty check in each runner fails the job if `CONTRACT_DIR` is wrong and zero scenarios would run |
 | Concurrent refresh (new scenario, run *before* fixing the code) | **Failed on both platforms**: duplicate refreshes. Fixed with an in-flight task (Swift) and a lock (Kotlin) |
 | Malformed response body (new scenario, run before fixing) | **Failed on Android only**: a `JSONException` escaped. Mapped to `serverError` |
-| Non-JSON 200 body, e.g. a captive portal page (new scenario, found by an independent review, run before fixing) | **Failed on iOS only**: Foundation's `JSONSerialization` error escaped instead of `serverError`, while Kotlin already mapped it. A parity gap that the earlier scenarios did not cover; fixed in Swift |
+| Non-JSON 200 body, e.g. a captive portal page (new scenario, suggested by an independent AI review, run before fixing) | **Failed on iOS only**: Foundation's `JSONSerialization` error escaped instead of `serverError`, while Kotlin already mapped it. A parity gap that the earlier scenarios did not cover; fixed in Swift |
 | Injected iOS-only bug (503 treated as session expiry) | Caught by `server_error_keeps_session` |
 | Keychain replaced by an in-memory store | The relaunch test fails, so the test is sensitive |
 | L3b native tests | Pass locally and on GitHub-hosted runners (Android API 29 and 36, iOS 18.5); UI tests in hosted CI are out of scope: the nightly iOS 26.2 job failed once and was not investigated |
@@ -290,19 +290,34 @@ L2a and L2b catch different things and both are needed: #2 and #4 are invisible 
 ### 3.1 The pipeline
 
 ```mermaid
-flowchart TD
-  PR[Pull request] --> P[Detect changed paths]
-  P --> AND[Android: L2a apiCheck + L2b]
-  P --> IOS[iOS: L2a digester + L2b]
-  AND --> REP[JUnit check + API diff comment]
-  IOS --> REP
-  N[Nightly: L3b Espresso + XCUITest, OS matrix, flaky report]
-  RC[Tag rc-*: matrix from compat.yaml] --> K[Contracts vs N-1/N-2 + consumer canary: planned]
-  K --> G{Release gates}
-  G -->|pass| R[Publish + changelog]
-  G -->|fail| F[Owner-routed report]
+flowchart LR
+  PR[PR] --> P[Path<br/>filter]
+  P --> AND[Android<br/>L2a + L2b]
+  P --> IOS[iOS<br/>L2a + L2b]
+  AND --> M[Merge<br/>to main]
+  IOS --> M
+  M --> N[Nightly<br/>L3b UI]
+  N --> RC[Tag rc-*<br/>compat matrix]
+  RC --> K[Previous releases<br/>+ canary: planned]
+  K --> G{Release<br/>gates}
+  G --> R[Publish or<br/>owner report]
   classDef planned stroke-dasharray: 4 3,fill:#f5f5f5,color:#666
   class K planned
+```
+
+Test architecture: the same scenarios drive both platforms against one fake server, and the harness app is reused by the native UI tests.
+
+```mermaid
+flowchart LR
+  SC[(scenarios.json<br/>core + consumer files)] --> SW[Swift runner]
+  SC --> KT[Kotlin runner]
+  SW --> FS[Fake auth server]
+  KT --> FS
+  SW --> IA[iOS AuthClient]
+  KT --> AA[Android AuthClient]
+  HA[Harness app] --> UI[L3b native UI tests]
+  FS --> UI
+  HA --> E2E[L4 E2E on staging]
 ```
 
 Solid boxes are built and ran on GitHub; the dashed box is a stub.
@@ -515,6 +530,6 @@ With more time I would improve the *design* of what is tested before adding more
 
 **Assumptions** are listed in the Introduction (A1 to A7) and should be validated first.
 
-**AI usage.** The prompts used, in order, with what each produced and how it was validated, are in the [Prompt Library](PROMPT_LIBRARY.md). GitHub Copilot was used as a pair to draft structure, scaffold the example (fake server, Swift and Kotlin runners, host apps, CI workflows) and iterate on wording. Approach, scope, risk scores and priorities were decided by me in dialogue. Output was validated rather than trusted: all tests were executed, and sensitivity was proven with deliberate faults (iOS-only 503 bug, API change, Keychain replaced by memory store), each caught by the intended test. New scenarios were written first and run against unfixed code, which surfaced two genuine defects. The CI ran on GitHub-hosted runners and was iterated until the PR gate was green; the six demo PRs show which layer catches which change (§2.3). Anything not exercised (iOS 26.2 UI run, canary and previous-release jobs, real devices, most time targets) is labelled as such.
+**AI usage.** The prompts used, in order, with what each produced and how it was validated, are in the [Prompt Library](PROMPT_LIBRARY.md). GitHub Copilot was used as a pair to draft structure, scaffold the example (fake server, Swift and Kotlin runners, host apps, CI workflows) and iterate on wording. Approach, scope, risk scores and priorities were decided by me in dialogue. Output was validated rather than trusted: all tests were executed, and sensitivity was proven with deliberate faults (iOS-only 503 bug, API change, Keychain replaced by memory store), each caught by the intended test. New scenarios were written first and run against unfixed code, which surfaced three genuine defects. The CI ran on GitHub-hosted runners and was iterated until the PR gate was green; the six demo PRs show which layer catches which change (§2.3). One independent review of the finished repository was done with a second AI assistant; I triaged its findings, fixed the valid ones and rejected the rest (for example, trimming the document). Anything not exercised (iOS 26.2 UI run, canary and previous-release jobs, real devices, most time targets) is labelled as such.
 
 **References:** Semantic Versioning 2.0 (semver.org) · Kotlin `binary-compatibility-validator` · Android *Testing strategies* (test pyramid, fidelity, cost of a bug) · Fowler, *The Practical Test Pyramid* · Satisfice HTSM (risk lens) · ISTQB risk-based testing practice.

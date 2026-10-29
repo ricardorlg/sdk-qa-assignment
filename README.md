@@ -143,4 +143,6 @@ The signature check and the behaviour contracts catch different problems, so bot
 - **Not built:** module-pair integration, harness E2E on staging, consumer canary, real-device tier and previous-release jobs. They are described in the document and listed as future work. The canary and previous-release jobs in `release.yml` are stubs.
 - **Open items:** UI tests in hosted CI are out of scope for this exercise (the nightly iOS 26.2 UI job failed once and was not diagnosed; in practice these run on a device farm or dedicated runners). Branch protection and required checks are not configured. `CODEOWNERS` uses placeholder team names. The Kotlin API validator is on 0.17.0 (0.18.x exists).
 - **Dummy SDK.** The SDK code is a reference implementation for the exercise; it contains no confidential or proprietary code.
-- **AI-assisted.** Built with GitHub Copilot. Prompts and how each output was validated are in [`docs/PROMPT_LIBRARY.md`](docs/PROMPT_LIBRARY.md).
+- **Reading order.** The deck is the main deliverable; `FINAL_DELIVERABLE` is the annex with the detail behind each slide.
+- **Public repository.** The brief was paraphrased and the company name removed from the files, but earlier commits in the history still contain them; this was accepted knowingly.
+- **AI-assisted.** Built with GitHub Copilot; one independent review was done with a second AI assistant. Prompts and how each output was validated are in [`docs/PROMPT_LIBRARY.md`](docs/PROMPT_LIBRARY.md).
